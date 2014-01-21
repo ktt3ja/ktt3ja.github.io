@@ -1,0 +1,192 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: Rust | insert title]]></title>
+  <link href="http://ktt3ja.github.io/blog/categories/rust/atom.xml" rel="self"/>
+  <link href="http://ktt3ja.github.io/"/>
+  <updated>2014-01-20T22:51:15-05:00</updated>
+  <id>http://ktt3ja.github.io/</id>
+  <author>
+    <name><![CDATA[Kiet Tran]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Some Ideas for Improving Rust's Lifetime Error Messages]]></title>
+    <link href="http://ktt3ja.github.io/blog/2014/01/20/some-ideas-for-improving-rusts-lifetime-error-messages/"/>
+    <updated>2014-01-20T19:21:48-05:00</updated>
+    <id>http://ktt3ja.github.io/blog/2014/01/20/some-ideas-for-improving-rusts-lifetime-error-messages</id>
+    <content type="html"><![CDATA[<p>This semester I have an opportunity to do an independent study on the Rust compiler, supervised by my professor David Evans. The particular topic I&rsquo;m thinking of exploring right now is the Rust lifetime system. This blog will serve as a place where I can document my progress (unless I feel lazy about blogging and this becomes the last post). It will also (hopefully) serve the dual purpose of showing professor Evans that I&rsquo;m not slacking off.</p>
+
+<p>If I have to rate my current knowledge of Rust, on a scale of 0 (no clue) to 10 (mastery), I would put myself at a 3. Embarrassingly, one crucial topic that I have always had trouble dealing with is Rust lifetime. People often say that we should keep learning different languages to explore new ways of thinking. For Rust, the new thing it offers is making the programmer explicitly aware of the lifetime of objects. Thus, given my lack of understanding of lifetime, I have plenty of reasons to study up on it.</p>
+
+<p>As such, if anything I write is incorrect, I would appreciate it if someone were to point it out.</p>
+
+<p>My current plan is to 1) read up the documentation on lifetime and the borrow-checker code (which handles lifetime)  and 2) improve the lifetime error messages. After going &frac14;th of the way through the documentation <code>middle::borrowck::gather_loans::doc</code>, I feel that I understand it a little better now, and a few ideas have formed in my head.</p>
+
+<h2>Idea #1</h2>
+
+<p>This idea wasn&rsquo;t thought of by me but given by Niko Matsakis and Patrick Walton. The idea is to detect common error patterns and suggest a fix. For example, currently, if we compile the following function:</p>
+
+<p>```rust
+struct Foo { y: int }
+fn bar(x: &amp;Foo) &ndash;> &amp;int {</p>
+
+<pre><code>&amp;x.y
+</code></pre>
+
+<p>}
+```</p>
+
+<p>we get all these scary-looking messages</p>
+
+<p>```rust
+test.rs:3:5: 3:9 error: cannot infer an appropriate lifetime for borrow expression due to conflicting requirements
+test.rs:3     &amp;x.y</p>
+
+<pre><code>          ^~~~
+</code></pre>
+
+<p>test.rs:2:25: 4:2 note: first, the lifetime cannot outlive the anonymous lifetime #1 defined on the block at 2:24&hellip;
+test.rs:2 fn bar(x: &amp;Foo) &ndash;> &amp;int {
+test.rs:3     &amp;x.y
+test.rs:4 }
+test.rs:3:5: 3:9 note: &hellip;so that reference does not outlive borrowed content
+test.rs:3     &amp;x.y</p>
+
+<pre><code>          ^~~~
+</code></pre>
+
+<p>test.rs:2:25: 4:2 note: but, the lifetime must be valid for the anonymous lifetime #2 defined on the block at 2:24&hellip;
+test.rs:2 fn bar(x: &amp;Foo) &ndash;> &amp;int {
+test.rs:3     &amp;x.y
+test.rs:4 }
+test.rs:3:5: 3:9 note: &hellip;so that types are compatible (expected <code>&amp;int</code> but found <code>&amp;int</code>)
+test.rs:3     &amp;x.y</p>
+
+<pre><code>          ^~~~
+</code></pre>
+
+<p>```</p>
+
+<p>It would be nice if in this particular case, we can just tell the user to introduce a lifetime parameter, or even better, give them something like: &ldquo;perhaps you mean to declare <code>fn bar&lt;'a&gt;(x: &amp;'a Foo) -&gt; &amp;'a int</code>?&rdquo;</p>
+
+<p>One feedback I should seek from others is: are all those notes necessary? Personally, my eyes just glance over them. I have never understood them. Perhaps there are other instances where they may be useful.</p>
+
+<h3>Idea #2</h3>
+
+<p>When the Rust compiler reports an error because of a previous borrow, it may be helpful to note where that borrow ends. For example, currently the program</p>
+
+<p>```rust
+fn main() {</p>
+
+<pre><code>let mut x: uint = 2;
+let y = &amp;mut x;
+let z = &amp;x;
+</code></pre>
+
+<p>}
+```</p>
+
+<p>reports</p>
+
+<p><code>``rust
+test.rs:4:13: 4:15 error: cannot borrow</code>x` as immutable because it is also borrowed as mutable
+test.rs:4     let z = &x;</p>
+
+<pre><code>                  ^~
+</code></pre>
+
+<p>test.rs:3:13: 3:19 note: previous borrow of <code>x</code> occurs here
+test.rs:3     let y = &amp;mut x;</p>
+
+<pre><code>                  ^~~~~~
+</code></pre>
+
+<p>```</p>
+
+<p>It may be good to add something like:</p>
+
+<p>```rust</p>
+
+<pre><code>      fn main() {
+          let mut x: uint = 2;
+          let y = &amp;mut x;
+          let z = &amp;x;
+      }
+</code></pre>
+
+<p>note: ^ <code>y</code>&rsquo;s borrow of <code>x</code> ends here
+```</p>
+
+<p>One case this would be helpful in is when the borrow ends earlier or later than the user expects, and so he has a chance to correct his misconception. On the other hand, it adds extra noise to the compiler, and the compiler is already pretty noisy.</p>
+
+<p>Note: I believe ezyang originally had the idea of doing this last month, as indicated by this <a href="https://gist.github.com/ezyang/8033155">gist</a>.</p>
+
+<h3>Idea #3</h3>
+
+<p>I will begin this part with examples. First, let&rsquo;s modify the program in Idea #2 a little bit. We will change the last line of the function so that <code>z</code> borrows from <code>x</code> mutably instead:</p>
+
+<p>```rust
+fn main() {</p>
+
+<pre><code>let mut x: uint = 2;
+let y = &amp;mut x;
+let z = &amp;mut x;
+</code></pre>
+
+<p>}
+```</p>
+
+<p>Compiling it would yield the following messages:</p>
+
+<p><code>``rust
+test.rs:4:13: 4:19 error: cannot borrow</code>x` as mutable more than once at a time
+test.rs:4     let z = &amp;mut x;</p>
+
+<pre><code>                  ^~~~~~
+</code></pre>
+
+<p>test.rs:3:13: 3:19 note: previous borrow of <code>x</code> as mutable occurs here
+test.rs:3     let y = &amp;mut x;</p>
+
+<pre><code>                  ^~~~~~
+</code></pre>
+
+<p>```</p>
+
+<p>While these messages and the messages in Idea #2 are correct, they have two shortcomings:</p>
+
+<ol>
+<li><p>A mutable borrow prevents <em>both</em> mutable and immutable borrows. The cause of these two errors are essentially the same, but currently it sounds like they are different. It is also a bit misleading to output &ldquo;error: cannot borrow <code>x</code> as immutable because it is also borrowed as mutable&rdquo; when it cannot even be borrowed as mutable.</p></li>
+<li><p>They fail to convey one key point: <strong>a borrow of a variable subsequently restricts the usage of that variable in some ways until that borrow ends</strong>.</p></li>
+</ol>
+
+
+<p>Thus, in this particular instance, I think we would be well served by outputting the same error message for both and elaborating the note:</p>
+
+<p><code>``rust
+test.rs:4:13: 4:19 error: cannot borrow</code>x` because it is already borrowed as mutable
+test.rs:4     let z = &amp;x      // or &amp;mut x</p>
+
+<pre><code>                  ^~~~~~
+</code></pre>
+
+<p>test.rs:3:13: 3:19 note: previous borrow of <code>x</code> as mutable occurs here; a mutable borrow
+prevents subsequent borrow or modification of variable <code>x</code> until the borrow ends.
+test.rs:3     let y = &amp;mut x;</p>
+
+<pre><code>                  ^~~~~~
+</code></pre>
+
+<p>```</p>
+
+<p>My only qualm is the wording does not convey explicitly that the restriction is placed on the <em>variable</em> only (perhaps &ldquo;subsequent borrow or modification <em>using</em> variable <code>x</code>&rdquo; would be better?)</p>
+
+<p>To summarize Idea #3, I believe that borrow checker errors can be conveyed better by focusing on the <em>restriction</em> that the original borrow places rather than reporting the precise details at the error site.</p>
+]]></content>
+  </entry>
+  
+</feed>

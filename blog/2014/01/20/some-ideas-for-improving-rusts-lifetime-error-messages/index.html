@@ -5,7 +5,7 @@
 <!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  <title>insert title</title>
+  <title>Some Ideas for Improving Rust's Lifetime Error Messages - insert title</title>
   <meta name="author" content="Kiet Tran">
 
   
@@ -18,7 +18,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   
-  <link rel="canonical" href="http://ktt3ja.github.io">
+  <link rel="canonical" href="http://ktt3ja.github.io/blog/2014/01/20/some-ideas-for-improving-rusts-lifetime-error-messages">
   <link href="/favicon.png" rel="icon">
   <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
   <link href="/atom.xml" rel="alternate" title="insert title" type="application/atom+xml">
@@ -63,15 +63,12 @@
 </nav>
   <div id="main">
     <div id="content">
-      <div class="blog-index">
+      <div>
+<article class="hentry" role="article">
   
-  
-  
-    <article>
-      
   <header>
     
-      <h1 class="entry-title"><a href="/blog/2014/01/20/some-ideas-for-improving-rusts-lifetime-error-messages/">Some Ideas for Improving Rust&#8217;s Lifetime Error Messages</a></h1>
+      <h1 class="entry-title">Some Ideas for Improving Rust's Lifetime Error Messages</h1>
     
     
       <p class="meta">
@@ -94,7 +91,7 @@
   </header>
 
 
-  <div class="entry-content"><p>This semester I have an opportunity to do an independent study on the Rust compiler, supervised by my professor David Evans. The particular topic I&rsquo;m thinking of exploring right now is the Rust lifetime system. This blog will serve as a place where I can document my progress (unless I feel lazy about blogging and this becomes the last post). It will also (hopefully) serve the dual purpose of showing professor Evans that I&rsquo;m not slacking off.</p>
+<div class="entry-content"><p>This semester I have an opportunity to do an independent study on the Rust compiler, supervised by my professor David Evans. The particular topic I&rsquo;m thinking of exploring right now is the Rust lifetime system. This blog will serve as a place where I can document my progress (unless I feel lazy about blogging and this becomes the last post). It will also (hopefully) serve the dual purpose of showing professor Evans that I&rsquo;m not slacking off.</p>
 
 <p>If I have to rate my current knowledge of Rust, on a scale of 0 (no clue) to 10 (mastery), I would put myself at a 3. Embarrassingly, one crucial topic that I have always had trouble dealing with is Rust lifetime. People often say that we should keep learning different languages to explore new ways of thinking. For Rust, the new thing it offers is making the programmer explicitly aware of the lifetime of objects. Thus, given my lack of understanding of lifetime, I have plenty of reasons to study up on it.</p>
 
@@ -280,18 +277,57 @@
 
 <p>To summarize Idea #3, I believe that borrow checker errors can be conveyed better by focusing on the <em>restriction</em> that the original borrow places rather than reporting the precise details at the error site.</p>
 </div>
+
+
+  <footer>
+    <p class="meta">
+      
   
+
+<span class="byline author vcard">Posted by <span class="fn">Kiet Tran</span></span>
+
+      
+
+
+
+
+
+
+
+
   
 
 
-    </article>
+<time datetime="2014-01-20T19:21:48-05:00" pubdate data-updated="true">Jan 20<span>th</span>, 2014</time>
+      
+
+<span class="categories">
   
-  <div class="pagination">
+    <a class='category' href='/blog/categories/independent-study/'>Independent Study</a>, <a class='category' href='/blog/categories/rust/'>Rust</a>
+  
+</span>
+
+
+    </p>
     
-    <a href="/blog/archives">Blog Archives</a>
-    
-  </div>
+      <div class="sharing">
+  
+  <a href="//twitter.com/share" class="twitter-share-button" data-url="http://ktt3ja.github.io/blog/2014/01/20/some-ideas-for-improving-rusts-lifetime-error-messages/" data-via="" data-counturl="http://ktt3ja.github.io/blog/2014/01/20/some-ideas-for-improving-rusts-lifetime-error-messages/" >Tweet</a>
+  
+  
+  
 </div>
+
+    
+    <p class="meta">
+      
+      
+    </p>
+  </footer>
+</article>
+
+</div>
+
 <aside class="sidebar">
   
     <section>
@@ -299,7 +335,7 @@
   <ul id="recent_posts">
     
       <li class="post">
-        <a href="/blog/2014/01/20/some-ideas-for-improving-rusts-lifetime-error-messages/">Some Ideas for Improving Rust&#8217;s Lifetime Error Messages</a>
+        <a href="/blog/2014/01/20/some-ideas-for-improving-rusts-lifetime-error-messages/">Some Ideas for Improving Rust's Lifetime Error Messages</a>
       </li>
     
   </ul>
@@ -311,6 +347,7 @@
 
   
 </aside>
+
 
     </div>
   </div>
