@@ -4,7 +4,7 @@
   <title><![CDATA[Category: Independent Study | insert title]]></title>
   <link href="http://ktt3ja.github.io/blog/categories/independent-study/atom.xml" rel="self"/>
   <link href="http://ktt3ja.github.io/"/>
-  <updated>2014-02-02T19:41:56-05:00</updated>
+  <updated>2014-02-02T20:29:29-05:00</updated>
   <id>http://ktt3ja.github.io/</id>
   <author>
     <name><![CDATA[Kiet Tran]]></name>
@@ -31,7 +31,7 @@ fn bar(x: &amp;Foo) -&gt; &amp;int {
 
 <h2 id="a-brief-description">A brief description</h2>
 
-<p>The compiler’s <a href="https://github.com/mozilla/rust/blob/5a618129b842f875dac5531ce7b8385fe4fcda6c/src/librustc/middle/typeck/infer/region_inference/doc.rs">documentation</a> contains a nice description of how region inference system works. In contrast, this description will be brief and omit many details. Its main purpose is to introduce some terminologies.</p>
+<p>The compiler’s <a href="https://github.com/mozilla/rust/blob/5a618129b842f875dac5531ce7b8385fe4fcda6c/src/librustc/middle/typeck/infer/region_inference/doc.rs">documentation</a> contains a nice description of how region inference system works. On the contrary, this description will be brief and omit many details. Its main purpose is to introduce some terminologies.</p>
 
 <p>The basic problem is that many times the compiler has to infer the lifetime of certain expressions. When that happens, it creates a “region variable”. By contrast, a “concrete region” may be a lifetime associated with some lexical scope (e.g. block of a function) or a free lifetime (I don’t quite get what this means, but it appears to refer to a lifetime that’s not bounded above). What the compiler does is that as it walks through a function, it accumulates “constraints”, and then it tries to solve those constraints by the end of the function. A constraint has the form <code>constraint(a, b)</code>, meaning that <code>a</code> is a subregion of (i.e., bounded by) <code>b</code>, where <code>a</code> and <code>b</code> may either be a region variable or a concrete region. The compiler would report the error if these constraints happen to conflict.</p>
 
