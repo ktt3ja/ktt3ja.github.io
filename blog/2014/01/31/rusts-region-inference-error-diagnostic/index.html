@@ -1,24 +1,97 @@
-<?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom">
 
-  <title><![CDATA[insert title]]></title>
-  <link href="http://ktt3ja.github.io/atom.xml" rel="self"/>
-  <link href="http://ktt3ja.github.io/"/>
-  <updated>2014-02-02T19:41:56-05:00</updated>
-  <id>http://ktt3ja.github.io/</id>
-  <author>
-    <name><![CDATA[Kiet Tran]]></name>
-    
-  </author>
-  <generator uri="http://octopress.org/">Octopress</generator>
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Rust's Region Inference Error Diagnostic - insert title</title>
+  <meta name="author" content="Kiet Tran">
 
   
-  <entry>
-    <title type="html"><![CDATA[Rust's Region Inference Error Diagnostic]]></title>
-    <link href="http://ktt3ja.github.io/blog/2014/01/31/rusts-region-inference-error-diagnostic/"/>
-    <updated>2014-01-31T19:00:20-05:00</updated>
-    <id>http://ktt3ja.github.io/blog/2014/01/31/rusts-region-inference-error-diagnostic</id>
-    <content type="html"><![CDATA[<p>My <a href="https://github.com/mozilla/rust/pull/11718/">PR</a> that implements ideas #2 and #3 of <a href="http://ktt3ja.github.io/blog/2014/01/20/some-ideas-for-improving-rusts-lifetime-error-messages/">previous post</a> was accepted last week, so earlier this week I set out to do idea #1. That is, I want to simplify the error message for the following code snippet:</p>
+  <meta name="description" content="My PR that implements ideas #2 and #3 of previous post was accepted last week, so earlier this week I set out to do idea #1. That is, I want to &hellip;">
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://ktt3ja.github.io/blog/2014/01/31/rusts-region-inference-error-diagnostic">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="/atom.xml" rel="alternate" title="insert title" type="application/atom+xml">
+  <script src="/javascripts/modernizr-2.0.js"></script>
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+  <script>!window.jQuery && document.write(unescape('%3Cscript src="./javascripts/libs/jquery.min.js"%3E%3C/script%3E'))</script>
+  <script src="/javascripts/octopress.js" type="text/javascript"></script>
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="http://fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="http://fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+
+  
+
+</head>
+
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="/">insert title</a></h1>
+  
+    <h2>Exploration of Lifetime</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="http://google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="q" value="site:ktt3ja.github.io" />
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+  <li><a href="/">Blog</a></li>
+  <li><a href="/blog/archives">Archives</a></li>
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content">
+      <div>
+<article class="hentry" role="article">
+  
+  <header>
+    
+      <h1 class="entry-title">Rust's Region Inference Error Diagnostic</h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2014-01-31T19:00:20-05:00" pubdate data-updated="true">Jan 31<span>st</span>, 2014</time>
+        
+      </p>
+    
+  </header>
+
+
+<div class="entry-content"><p>My <a href="https://github.com/mozilla/rust/pull/11718/">PR</a> that implements ideas #2 and #3 of <a href="/blog/2014/01/20/some-ideas-for-improving-rusts-lifetime-error-messages/">previous post</a> was accepted last week, so earlier this week I set out to do idea #1. That is, I want to simplify the error message for the following code snippet:</p>
 
 <div class="bogus-wrapper"><notextile><figure class="code"><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
 <span class="line-number">2</span>
@@ -355,195 +428,114 @@
 <h2 id="moving-forward">Moving forward</h2>
 
 <p>I expect many of these questions will become clearer as I read the code more, but unfortunately it’s a slow process. I’m not quite clear on what to do now. Maybe I can start implementing the suggestions I made in this post.</p>
-]]></content>
-  </entry>
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
   
-  <entry>
-    <title type="html"><![CDATA[Some Ideas for Improving Rust's Lifetime Error Messages]]></title>
-    <link href="http://ktt3ja.github.io/blog/2014/01/20/some-ideas-for-improving-rusts-lifetime-error-messages/"/>
-    <updated>2014-01-20T19:21:48-05:00</updated>
-    <id>http://ktt3ja.github.io/blog/2014/01/20/some-ideas-for-improving-rusts-lifetime-error-messages</id>
-    <content type="html"><![CDATA[<p>This semester I have an opportunity to do an independent study on the Rust compiler, supervised by my professor David Evans. The particular topic I’m thinking of exploring right now is the Rust lifetime system. This blog will serve as a place where I can document my progress (unless I feel lazy about blogging and this becomes the last post). It will also (hopefully) serve the dual purpose of showing professor Evans that I’m not slacking off.</p>
 
-<p>If I have to rate my current knowledge of Rust, on a scale of 0 (no clue) to 10 (mastery), I would put myself at a 3. Embarrassingly, one crucial topic that I have always had trouble dealing with is Rust lifetime. People often say that we should keep learning different languages to explore new ways of thinking. For Rust, the new thing it offers is making the programmer explicitly aware of the lifetime of objects. Thus, given my lack of understanding of lifetime, I have plenty of reasons to study up on it.</p>
+<span class="byline author vcard">Posted by <span class="fn">Kiet Tran</span></span>
 
-<p>As such, if anything I write is incorrect, I would appreciate it if someone were to point it out.</p>
+      
 
-<p>My current plan is to 1) read up the documentation on lifetime and the borrow-checker code (which handles lifetime)  and 2) improve the lifetime error messages. After going 1/4th of the way through the documentation <code>middle::borrowck::gather_loans::doc</code>, I feel that I understand it a little better now, and a few ideas have formed in my head.</p>
 
-<h2 id="idea-1">Idea #1</h2>
 
-<p>This idea wasn’t thought of by me but given by Niko Matsakis and Patrick Walton. The idea is to detect common error patterns and suggest a fix. For example, currently, if we compile the following function:</p>
 
-<div class="bogus-wrapper"><notextile><figure class="code"><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
-<span class="line-number">2</span>
-<span class="line-number">3</span>
-<span class="line-number">4</span>
-</pre></td><td class="code"><pre><code class="rust"><span class="line"><span class="n">struct</span> <span class="n">Foo</span> <span class="p">{</span> <span class="n">y</span><span class="o">:</span> <span class="k">int</span> <span class="p">}</span>
-</span><span class="line"><span class="k">fn</span> <span class="n">bar</span><span class="p">(</span><span class="n">x</span><span class="o">:</span> <span class="o">&amp;</span><span class="n">Foo</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="o">&amp;</span><span class="k">int</span> <span class="p">{</span>
-</span><span class="line">    <span class="o">&amp;</span><span class="n">x</span><span class="p">.</span><span class="n">y</span>
-</span><span class="line"><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure></notextile></div>
 
-<p>we get all these scary-looking messages</p>
 
-<div class="bogus-wrapper"><notextile><figure class="code"><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
-<span class="line-number">2</span>
-<span class="line-number">3</span>
-<span class="line-number">4</span>
-<span class="line-number">5</span>
-<span class="line-number">6</span>
-<span class="line-number">7</span>
-<span class="line-number">8</span>
-<span class="line-number">9</span>
-<span class="line-number">10</span>
-<span class="line-number">11</span>
-<span class="line-number">12</span>
-<span class="line-number">13</span>
-<span class="line-number">14</span>
-<span class="line-number">15</span>
-<span class="line-number">16</span>
-<span class="line-number">17</span>
-</pre></td><td class="code"><pre><code class="rust"><span class="line"><span class="n">test</span><span class="p">.</span><span class="n">rs</span><span class="o">:</span><span class="m">3</span><span class="o">:</span><span class="m">5</span><span class="o">:</span> <span class="m">3</span><span class="o">:</span><span class="m">9</span> <span class="n">error</span><span class="o">:</span> <span class="n">cannot</span> <span class="n">infer</span> <span class="n">an</span> <span class="n">appropriate</span> <span class="n">lifetime</span> <span class="k">for</span> <span class="n">borrow</span> <span class="n">expression</span> <span class="n">due</span> <span class="n">to</span> <span class="n">conflicting</span> <span class="n">requirements</span>
-</span><span class="line"><span class="n">test</span><span class="p">.</span><span class="n">rs</span><span class="o">:</span><span class="m">3</span>     <span class="o">&amp;</span><span class="n">x</span><span class="p">.</span><span class="n">y</span>
-</span><span class="line">              <span class="o">^~~~</span>
-</span><span class="line"><span class="n">test</span><span class="p">.</span><span class="n">rs</span><span class="o">:</span><span class="m">2</span><span class="o">:</span><span class="m">25</span><span class="o">:</span> <span class="m">4</span><span class="o">:</span><span class="m">2</span> <span class="k">note</span><span class="o">:</span> <span class="n">first</span><span class="p">,</span> <span class="n">the</span> <span class="n">lifetime</span> <span class="n">cannot</span> <span class="n">outlive</span> <span class="n">the</span> <span class="n">anonymous</span> <span class="n">lifetime</span> <span class="err">#</span><span class="m">1</span> <span class="n">defined</span> <span class="n">on</span> <span class="n">the</span> <span class="n">block</span> <span class="n">at</span> <span class="m">2</span><span class="o">:</span><span class="m">24.</span><span class="p">..</span>
-</span><span class="line"><span class="n">test</span><span class="p">.</span><span class="n">rs</span><span class="o">:</span><span class="m">2</span> <span class="k">fn</span> <span class="n">bar</span><span class="p">(</span><span class="n">x</span><span class="o">:</span> <span class="o">&amp;</span><span class="n">Foo</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="o">&amp;</span><span class="k">int</span> <span class="p">{</span>
-</span><span class="line"><span class="n">test</span><span class="p">.</span><span class="n">rs</span><span class="o">:</span><span class="m">3</span>     <span class="o">&amp;</span><span class="n">x</span><span class="p">.</span><span class="n">y</span>
-</span><span class="line"><span class="n">test</span><span class="p">.</span><span class="n">rs</span><span class="o">:</span><span class="m">4</span> <span class="p">}</span>
-</span><span class="line"><span class="n">test</span><span class="p">.</span><span class="n">rs</span><span class="o">:</span><span class="m">3</span><span class="o">:</span><span class="m">5</span><span class="o">:</span> <span class="m">3</span><span class="o">:</span><span class="m">9</span> <span class="k">note</span><span class="o">:</span> <span class="p">...</span><span class="n">so</span> <span class="n">that</span> <span class="n">reference</span> <span class="n">does</span> <span class="n">not</span> <span class="n">outlive</span> <span class="n">borrowed</span> <span class="n">content</span>
-</span><span class="line"><span class="n">test</span><span class="p">.</span><span class="n">rs</span><span class="o">:</span><span class="m">3</span>     <span class="o">&amp;</span><span class="n">x</span><span class="p">.</span><span class="n">y</span>
-</span><span class="line">              <span class="o">^~~~</span>
-</span><span class="line"><span class="n">test</span><span class="p">.</span><span class="n">rs</span><span class="o">:</span><span class="m">2</span><span class="o">:</span><span class="m">25</span><span class="o">:</span> <span class="m">4</span><span class="o">:</span><span class="m">2</span> <span class="k">note</span><span class="o">:</span> <span class="n">but</span><span class="p">,</span> <span class="n">the</span> <span class="n">lifetime</span> <span class="n">must</span> <span class="k">be</span> <span class="n">valid</span> <span class="k">for</span> <span class="n">the</span> <span class="n">anonymous</span> <span class="n">lifetime</span> <span class="err">#</span><span class="m">2</span> <span class="n">defined</span> <span class="n">on</span> <span class="n">the</span> <span class="n">block</span> <span class="n">at</span> <span class="m">2</span><span class="o">:</span><span class="m">24.</span><span class="p">..</span>
-</span><span class="line"><span class="n">test</span><span class="p">.</span><span class="n">rs</span><span class="o">:</span><span class="m">2</span> <span class="k">fn</span> <span class="n">bar</span><span class="p">(</span><span class="n">x</span><span class="o">:</span> <span class="o">&amp;</span><span class="n">Foo</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="o">&amp;</span><span class="k">int</span> <span class="p">{</span>
-</span><span class="line"><span class="n">test</span><span class="p">.</span><span class="n">rs</span><span class="o">:</span><span class="m">3</span>     <span class="o">&amp;</span><span class="n">x</span><span class="p">.</span><span class="n">y</span>
-</span><span class="line"><span class="n">test</span><span class="p">.</span><span class="n">rs</span><span class="o">:</span><span class="m">4</span> <span class="p">}</span>
-</span><span class="line"><span class="n">test</span><span class="p">.</span><span class="n">rs</span><span class="o">:</span><span class="m">3</span><span class="o">:</span><span class="m">5</span><span class="o">:</span> <span class="m">3</span><span class="o">:</span><span class="m">9</span> <span class="k">note</span><span class="o">:</span> <span class="p">...</span><span class="n">so</span> <span class="n">that</span> <span class="n">types</span> <span class="n">are</span> <span class="n">compatible</span> <span class="p">(</span><span class="n">expected</span> <span class="err">`</span><span class="o">&amp;</span><span class="k">int</span><span class="err">`</span> <span class="n">but</span> <span class="n">found</span> <span class="err">`</span><span class="o">&amp;</span><span class="k">int</span><span class="err">`</span><span class="p">)</span>
-</span><span class="line"><span class="n">test</span><span class="p">.</span><span class="n">rs</span><span class="o">:</span><span class="m">3</span>     <span class="o">&amp;</span><span class="n">x</span><span class="p">.</span><span class="n">y</span>
-</span><span class="line">              <span class="o">^~~~</span>
-</span></code></pre></td></tr></table></div></figure></notextile></div>
 
-<p>It would be nice if in this particular case, we can just tell the user to introduce a lifetime parameter, or even better, give them something like: “perhaps you mean to declare <code>fn bar&lt;'a&gt;(x: &amp;'a Foo) -&gt; &amp;'a int</code>?”</p>
 
-<p>One feedback I should seek from others is: are all those notes necessary? Personally, my eyes just glance over them. I have never understood them. Perhaps there are other instances where they may be useful.</p>
-
-<h3 id="idea-2">Idea #2</h3>
-
-<p>Here’s an idea that <a href="https://github.com/ezyang">ezyang</a> had. He posted this <a href="https://gist.github.com/ezyang/8033155">gist</a> on IRC last month, though at the time I had no idea what he was doing.</p>
-
-<p>When the Rust compiler reports an error because of a previous borrow, it may be helpful to note where that borrow ends. For example, currently the program</p>
-
-<div class="bogus-wrapper"><notextile><figure class="code"><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
-<span class="line-number">2</span>
-<span class="line-number">3</span>
-<span class="line-number">4</span>
-<span class="line-number">5</span>
-</pre></td><td class="code"><pre><code class="rust"><span class="line"><span class="k">fn</span> <span class="n">main</span><span class="p">()</span> <span class="p">{</span>
-</span><span class="line">    <span class="k">let</span> <span class="k">mut</span> <span class="n">x</span><span class="o">:</span> <span class="k">uint</span> <span class="o">=</span> <span class="m">2</span><span class="p">;</span>
-</span><span class="line">    <span class="k">let</span> <span class="n">y</span> <span class="o">=</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">x</span><span class="p">;</span>
-</span><span class="line">    <span class="k">let</span> <span class="n">z</span> <span class="o">=</span> <span class="o">&amp;</span><span class="n">x</span><span class="p">;</span>
-</span><span class="line"><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure></notextile></div>
-
-<p>reports</p>
-
-<div class="bogus-wrapper"><notextile><figure class="code"><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
-<span class="line-number">2</span>
-<span class="line-number">3</span>
-<span class="line-number">4</span>
-<span class="line-number">5</span>
-<span class="line-number">6</span>
-</pre></td><td class="code"><pre><code class="rust"><span class="line"><span class="n">test</span><span class="p">.</span><span class="n">rs</span><span class="o">:</span><span class="m">4</span><span class="o">:</span><span class="m">13</span><span class="o">:</span> <span class="m">4</span><span class="o">:</span><span class="m">15</span> <span class="n">error</span><span class="o">:</span> <span class="n">cannot</span> <span class="n">borrow</span> <span class="err">`</span><span class="n">x</span><span class="err">`</span> <span class="k">as</span> <span class="n">immutable</span> <span class="n">because</span> <span class="n">it</span> <span class="n">is</span> <span class="n">also</span> <span class="n">borrowed</span> <span class="k">as</span> <span class="n">mutable</span>
-</span><span class="line"><span class="n">test</span><span class="p">.</span><span class="n">rs</span><span class="o">:</span><span class="m">4</span>     <span class="k">let</span> <span class="n">z</span> <span class="o">=</span> <span class="o">&amp;</span><span class="n">x</span><span class="p">;</span>
-</span><span class="line">                      <span class="o">^~</span>
-</span><span class="line"><span class="n">test</span><span class="p">.</span><span class="n">rs</span><span class="o">:</span><span class="m">3</span><span class="o">:</span><span class="m">13</span><span class="o">:</span> <span class="m">3</span><span class="o">:</span><span class="m">19</span> <span class="k">note</span><span class="o">:</span> <span class="n">previous</span> <span class="n">borrow</span> <span class="n">of</span> <span class="err">`</span><span class="n">x</span><span class="err">`</span> <span class="n">occurs</span> <span class="n">here</span>
-</span><span class="line"><span class="n">test</span><span class="p">.</span><span class="n">rs</span><span class="o">:</span><span class="m">3</span>     <span class="k">let</span> <span class="n">y</span> <span class="o">=</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">x</span><span class="p">;</span>
-</span><span class="line">                      <span class="o">^~~~~~</span>
-</span></code></pre></td></tr></table></div></figure></notextile></div>
-
-<p>It may be good to add something like:</p>
-
-<div class="bogus-wrapper"><notextile><figure class="code"><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
-<span class="line-number">2</span>
-<span class="line-number">3</span>
-<span class="line-number">4</span>
-<span class="line-number">5</span>
-<span class="line-number">6</span>
-</pre></td><td class="code"><pre><code class="rust"><span class="line">      <span class="k">fn</span> <span class="n">main</span><span class="p">()</span> <span class="p">{</span>
-</span><span class="line">          <span class="k">let</span> <span class="k">mut</span> <span class="n">x</span><span class="o">:</span> <span class="k">uint</span> <span class="o">=</span> <span class="m">2</span><span class="p">;</span>
-</span><span class="line">          <span class="k">let</span> <span class="n">y</span> <span class="o">=</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">x</span><span class="p">;</span>
-</span><span class="line">          <span class="k">let</span> <span class="n">z</span> <span class="o">=</span> <span class="o">&amp;</span><span class="n">x</span><span class="p">;</span>
-</span><span class="line">      <span class="p">}</span>
-</span><span class="line"><span class="k">note</span><span class="o">:</span> <span class="o">^</span> <span class="err">`</span><span class="n">y</span><span class="err">`&#39;</span><span class="n">s</span> <span class="n">borrow</span> <span class="n">of</span> <span class="err">`</span><span class="n">x</span><span class="err">`</span> <span class="n">ends</span> <span class="n">here</span>
-</span></code></pre></td></tr></table></div></figure></notextile></div>
-
-<p>One case this would be helpful in is when the borrow ends earlier or later than the user expects, and so he has a chance to correct his misconception. On the other hand, it adds extra noise to the compiler, and the compiler is already pretty noisy.</p>
-
-<h3 id="idea-3">Idea #3</h3>
-
-<p>I will begin this part with examples. First, let’s modify the program in Idea #2 a little bit. We will change the last line of the function so that <code>z</code> borrows from <code>x</code> mutably instead:</p>
-
-<div class="bogus-wrapper"><notextile><figure class="code"><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
-<span class="line-number">2</span>
-<span class="line-number">3</span>
-<span class="line-number">4</span>
-<span class="line-number">5</span>
-</pre></td><td class="code"><pre><code class="rust"><span class="line"><span class="k">fn</span> <span class="n">main</span><span class="p">()</span> <span class="p">{</span>
-</span><span class="line">    <span class="k">let</span> <span class="k">mut</span> <span class="n">x</span><span class="o">:</span> <span class="k">uint</span> <span class="o">=</span> <span class="m">2</span><span class="p">;</span>
-</span><span class="line">    <span class="k">let</span> <span class="n">y</span> <span class="o">=</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">x</span><span class="p">;</span>
-</span><span class="line">    <span class="k">let</span> <span class="n">z</span> <span class="o">=</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">x</span><span class="p">;</span>
-</span><span class="line"><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure></notextile></div>
-
-<p>Compiling it would yield the following messages:</p>
-
-<div class="bogus-wrapper"><notextile><figure class="code"><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
-<span class="line-number">2</span>
-<span class="line-number">3</span>
-<span class="line-number">4</span>
-<span class="line-number">5</span>
-<span class="line-number">6</span>
-</pre></td><td class="code"><pre><code class="rust"><span class="line"><span class="n">test</span><span class="p">.</span><span class="n">rs</span><span class="o">:</span><span class="m">4</span><span class="o">:</span><span class="m">13</span><span class="o">:</span> <span class="m">4</span><span class="o">:</span><span class="m">19</span> <span class="n">error</span><span class="o">:</span> <span class="n">cannot</span> <span class="n">borrow</span> <span class="err">`</span><span class="n">x</span><span class="err">`</span> <span class="k">as</span> <span class="n">mutable</span> <span class="n">more</span> <span class="n">than</span> <span class="n">once</span> <span class="n">at</span> <span class="n">a</span> <span class="n">time</span>
-</span><span class="line"><span class="n">test</span><span class="p">.</span><span class="n">rs</span><span class="o">:</span><span class="m">4</span>     <span class="k">let</span> <span class="n">z</span> <span class="o">=</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">x</span><span class="p">;</span>
-</span><span class="line">                      <span class="o">^~~~~~</span>
-</span><span class="line"><span class="n">test</span><span class="p">.</span><span class="n">rs</span><span class="o">:</span><span class="m">3</span><span class="o">:</span><span class="m">13</span><span class="o">:</span> <span class="m">3</span><span class="o">:</span><span class="m">19</span> <span class="k">note</span><span class="o">:</span> <span class="n">previous</span> <span class="n">borrow</span> <span class="n">of</span> <span class="err">`</span><span class="n">x</span><span class="err">`</span> <span class="k">as</span> <span class="n">mutable</span> <span class="n">occurs</span> <span class="n">here</span>
-</span><span class="line"><span class="n">test</span><span class="p">.</span><span class="n">rs</span><span class="o">:</span><span class="m">3</span>     <span class="k">let</span> <span class="n">y</span> <span class="o">=</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">x</span><span class="p">;</span>
-</span><span class="line">                      <span class="o">^~~~~~</span>
-</span></code></pre></td></tr></table></div></figure></notextile></div>
-
-<p>While these messages and the messages in Idea #2 are correct, they have two shortcomings:</p>
-
-<ol>
-  <li>
-    <p>A mutable borrow prevents <em>both</em> mutable and immutable borrows. The cause of these two errors are essentially the same, but currently it sounds like they are different. It is also a bit misleading to output “error: cannot borrow <code>x</code> as immutable because it is also borrowed as mutable” when it cannot even be borrowed as mutable.</p>
-  </li>
-  <li>
-    <p>They fail to convey one key point: <strong>a borrow of a variable subsequently restricts the usage of that variable in some ways until that borrow ends</strong>.</p>
-  </li>
-</ol>
-
-<p>Thus, in this particular instance, I think we would be well served by outputting the same error message for both and elaborating the note:</p>
-
-<div class="bogus-wrapper"><notextile><figure class="code"><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
-<span class="line-number">2</span>
-<span class="line-number">3</span>
-<span class="line-number">4</span>
-<span class="line-number">5</span>
-<span class="line-number">6</span>
-<span class="line-number">7</span>
-</pre></td><td class="code"><pre><code class="rust"><span class="line"><span class="n">test</span><span class="p">.</span><span class="n">rs</span><span class="o">:</span><span class="m">4</span><span class="o">:</span><span class="m">13</span><span class="o">:</span> <span class="m">4</span><span class="o">:</span><span class="m">19</span> <span class="n">error</span><span class="o">:</span> <span class="n">cannot</span> <span class="n">borrow</span> <span class="err">`</span><span class="n">x</span><span class="err">`</span> <span class="n">because</span> <span class="n">it</span> <span class="n">is</span> <span class="n">already</span> <span class="n">borrowed</span> <span class="k">as</span> <span class="n">mutable</span>
-</span><span class="line"><span class="n">test</span><span class="p">.</span><span class="n">rs</span><span class="o">:</span><span class="m">4</span>     <span class="k">let</span> <span class="n">z</span> <span class="o">=</span> <span class="o">&amp;</span><span class="n">x</span>      <span class="c1">// or &amp;mut x</span>
-</span><span class="line">                      <span class="o">^~~~~~</span>
-</span><span class="line"><span class="n">test</span><span class="p">.</span><span class="n">rs</span><span class="o">:</span><span class="m">3</span><span class="o">:</span><span class="m">13</span><span class="o">:</span> <span class="m">3</span><span class="o">:</span><span class="m">19</span> <span class="k">note</span><span class="o">:</span> <span class="n">previous</span> <span class="n">borrow</span> <span class="n">of</span> <span class="err">`</span><span class="n">x</span><span class="err">`</span> <span class="k">as</span> <span class="n">mutable</span> <span class="n">occurs</span> <span class="n">here</span><span class="p">;</span> <span class="n">a</span> <span class="n">mutable</span> <span class="n">borrow</span>
-</span><span class="line"><span class="n">prevents</span> <span class="n">subsequent</span> <span class="n">borrow</span> <span class="n">or</span> <span class="n">modification</span> <span class="n">of</span> <span class="n">variable</span> <span class="err">`</span><span class="n">x</span><span class="err">`</span> <span class="n">until</span> <span class="n">the</span> <span class="n">borrow</span> <span class="n">ends</span><span class="p">.</span>
-</span><span class="line"><span class="n">test</span><span class="p">.</span><span class="n">rs</span><span class="o">:</span><span class="m">3</span>     <span class="k">let</span> <span class="n">y</span> <span class="o">=</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">x</span><span class="p">;</span>
-</span><span class="line">                      <span class="o">^~~~~~</span>
-</span></code></pre></td></tr></table></div></figure></notextile></div>
-
-<p>My only qualm is the wording does not convey explicitly that the restriction is placed on the <em>variable</em> only (perhaps “subsequent borrow or modification <em>using</em> variable <code>x</code>” would be better?)</p>
-
-<p>To summarize Idea #3, I believe that borrow checker errors can be conveyed better by focusing on the <em>restriction</em> that the original borrow places rather than reporting the precise details at the error site.</p>
-]]></content>
-  </entry>
   
-</feed>
+
+
+<time datetime="2014-01-31T19:00:20-05:00" pubdate data-updated="true">Jan 31<span>st</span>, 2014</time>
+      
+
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/independent-study/'>Independent Study</a>, <a class='category' href='/blog/categories/rust/'>Rust</a>
+  
+</span>
+
+
+    </p>
+    
+      <div class="sharing">
+  
+  <a href="//twitter.com/share" class="twitter-share-button" data-url="http://ktt3ja.github.io/blog/2014/01/31/rusts-region-inference-error-diagnostic/" data-via="" data-counturl="http://ktt3ja.github.io/blog/2014/01/31/rusts-region-inference-error-diagnostic/" >Tweet</a>
+  
+  
+  
+</div>
+
+    
+    <p class="meta">
+      
+        <a class="basic-alignment left" href="/blog/2014/01/20/some-ideas-for-improving-rusts-lifetime-error-messages/" title="Previous Post: Some Ideas for Improving Rust's Lifetime Error Messages">&laquo; Some Ideas for Improving Rust's Lifetime Error Messages</a>
+      
+      
+    </p>
+  </footer>
+</article>
+
+</div>
+
+<aside class="sidebar">
+  
+    <section>
+  <h1>Recent Posts</h1>
+  <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/2014/01/31/rusts-region-inference-error-diagnostic/">Rust's Region Inference Error Diagnostic</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2014/01/20/some-ideas-for-improving-rusts-lifetime-error-messages/">Some Ideas for Improving Rust's Lifetime Error Messages</a>
+      </li>
+    
+  </ul>
+</section>
+
+
+
+
+
+  
+</aside>
+
+
+    </div>
+  </div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2014 - Kiet Tran -
+  <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+  
+
+
+
+
+
+
+
+  <script type="text/javascript">
+    (function(){
+      var twitterWidgets = document.createElement('script');
+      twitterWidgets.type = 'text/javascript';
+      twitterWidgets.async = true;
+      twitterWidgets.src = '//platform.twitter.com/widgets.js';
+      document.getElementsByTagName('head')[0].appendChild(twitterWidgets);
+    })();
+  </script>
+
+
+
+
+
+</body>
+</html>

@@ -4,7 +4,7 @@
   <title><![CDATA[Category: Rust | insert title]]></title>
   <link href="http://ktt3ja.github.io/blog/categories/rust/atom.xml" rel="self"/>
   <link href="http://ktt3ja.github.io/"/>
-  <updated>2014-01-20T22:51:15-05:00</updated>
+  <updated>2014-02-02T19:41:56-05:00</updated>
   <id>http://ktt3ja.github.io/</id>
   <author>
     <name><![CDATA[Kiet Tran]]></name>
@@ -14,176 +14,386 @@
 
   
   <entry>
+    <title type="html"><![CDATA[Rust's Region Inference Error Diagnostic]]></title>
+    <link href="http://ktt3ja.github.io/blog/2014/01/31/rusts-region-inference-error-diagnostic/"/>
+    <updated>2014-01-31T19:00:20-05:00</updated>
+    <id>http://ktt3ja.github.io/blog/2014/01/31/rusts-region-inference-error-diagnostic</id>
+    <content type="html"><![CDATA[<p>My <a href="https://github.com/mozilla/rust/pull/11718/">PR</a> that implements ideas #2 and #3 of <a href="/blog/2014/01/20/some-ideas-for-improving-rusts-lifetime-error-messages/">previous post</a> was accepted last week, so earlier this week I set out to do idea #1. That is, I want to simplify the error message for the following code snippet:</p>
+
+<p><code>rust
+struct Foo { y: int }
+fn bar(x: &amp;Foo) -&gt; &amp;int {
+    &amp;x.y
+}
+</code></p>
+
+<p>It turns out that the error diagnostic for this case does not lie in the borrow checker but the region inference system (where “region” is synonymous to “lifetime”). Thus, I spent Monday and Tuesday reading the codes inside <code>rustc::middle::typeck::infer</code>. I felt quite down by the end of it, though, because I couldn’t figure out a straightforward way to detect the common pattern above, and I was at a loss of what to do. The purpose of this post is to sort out my thinking, console myself, and document some of what I have learned so far.</p>
+
+<h2 id="a-brief-description">A brief description</h2>
+
+<p>The compiler’s <a href="https://github.com/mozilla/rust/blob/5a618129b842f875dac5531ce7b8385fe4fcda6c/src/librustc/middle/typeck/infer/region_inference/doc.rs">documentation</a> contains a nice description of how region inference system works. In contrast, this description will be brief and omit many details. Its main purpose is to introduce some terminologies.</p>
+
+<p>The basic problem is that many times the compiler has to infer the lifetime of certain expressions. When that happens, it creates a “region variable”. By contrast, a “concrete region” may be a lifetime associated with some lexical scope (e.g. block of a function) or a free lifetime (I don’t quite get what this means, but it appears to refer to a lifetime that’s not bounded above). What the compiler does is that as it walks through a function, it accumulates “constraints”, and then it tries to solve those constraints by the end of the function. A constraint has the form <code>constraint(a, b)</code>, meaning that <code>a</code> is a subregion of (i.e., bounded by) <code>b</code>, where <code>a</code> and <code>b</code> may either be a region variable or a concrete region. The compiler would report the error if these constraints happen to conflict.</p>
+
+<h2 id="types-of-error">Types of error</h2>
+
+<p>When the compiler runs through these constraints and deduces region inference errors, it collects them and then reports them later. Region inference errors are categorized into three types, as described by the <a href="https://github.com/mozilla/rust/blob/5a618129b842f875dac5531ce7b8385fe4fcda6c/src/librustc/middle/typeck/infer/region_inference/mod.rs#L62-L85">RegionResolutionError</a> enum:</p>
+
+<p>```rust
+pub enum RegionResolutionError {
+    /// <code>ConcreteFailure(o, a, b)</code>:
+    ///
+    /// <code>o</code> requires that <code>a &lt;= b</code>, but this does not hold
+    ConcreteFailure(SubregionOrigin, Region, Region),</p>
+
+<pre><code>/// `SubSupConflict(v, sub_origin, sub_r, sup_origin, sup_r)`:
+///
+/// Could not infer a value for `v` because `sub_r &lt;= v` (due to
+/// `sub_origin`) but `v &lt;= sup_r` (due to `sup_origin`) and
+/// `sub_r &lt;= sup_r` does not hold.
+SubSupConflict(RegionVariableOrigin,
+               SubregionOrigin, Region,
+               SubregionOrigin, Region),
+
+/// `SupSupConflict(v, origin1, r1, origin2, r2)`:
+///
+/// Could not infer a value for `v` because `v &lt;= r1` (due to
+/// `origin1`) and `v &lt;= r2` (due to `origin2`) and
+/// `r1` and `r2` have no intersection.
+SupSupConflict(RegionVariableOrigin,
+               SubregionOrigin, Region,
+               SubregionOrigin, Region), } ```
+</code></pre>
+
+<p>As described by the comments, this is roughly what these errors correspond to:</p>
+
+<ul>
+  <li>
+    <p><code>ConcreteFailure</code> - there is a <code>constraint(a, b)</code>, where <code>a</code> and <code>b</code> are concrete regions, that does not hold</p>
+  </li>
+  <li>
+    <p><code>SubSupConflict</code> - there are <code>constraint(sub_r, v)</code>, <code>constraint(v, sup_r)</code>, where <code>sub_r</code> and <code>sup_r</code> are concrete regions and <code>v</code> is a region variable. Since <code>sub_r</code> is a subregion of <code>v</code> and <code>v</code> is a subregion of <code>sup_r</code>, it follows that <code>sub_r</code> is a subregion of <code>sup_r</code>. However, that constraint is not satisfied.</p>
+  </li>
+  <li>
+    <p><code>SupSupConflict</code> - there are <code>constraint(v, r1)</code> and <code>constraint(v, r2)</code>. Since <code>v</code> is a subregion of both <code>r1</code> and <code>r2</code>, they must overlap. However, they do not.</p>
+  </li>
+</ul>
+
+<p>Recall that we create a region variable when we need to infer the lifetime of some expression. Here a <code>RegionVariableOrigin</code> is a type used to record <em>why</em> we created the region variable in the first place. On the other hand, <code>SubregionOrigin</code> records why we created the constraint. Thus, suppose some region variable <code>v</code> has the RegionVariableOrigin <code>v_origin</code>, then <code>SubSupConflict(v_origin, sub_origin, sub_r, sup_origin, sup_r)</code> encodes the following information:</p>
+
+<ul>
+  <li>
+    <p><code>v_origin</code> - why the region variable <code>v</code> is created</p>
+  </li>
+  <li>
+    <p><code>sub_origin</code> - why we created <code>constraint(sub_r, v)</code></p>
+  </li>
+  <li>
+    <p><code>sup_origin</code> - why we created <code>constraint(v, sup_r)</code></p>
+  </li>
+</ul>
+
+<h2 id="case-study">Case study</h2>
+
+<p>Compiling the function at the beginning of this post gives us the following error:</p>
+
+<p><code>rust
+test.rs:3:5: 3:9 error: cannot infer an appropriate lifetime for borrow expression due to conflicting requirements
+test.rs:3     &amp;x.y
+              ^~~~
+test.rs:2:25: 4:2 note: first, the lifetime cannot outlive the anonymous lifetime #1 defined on the block at 2:24...
+test.rs:2 fn bar(x: &amp;Foo) -&gt; &amp;int {
+test.rs:3     &amp;x.y
+test.rs:4 }
+test.rs:3:5: 3:9 note: ...so that reference does not outlive borrowed content
+test.rs:3     &amp;x.y
+              ^~~~
+test.rs:2:25: 4:2 note: but, the lifetime must be valid for the anonymous lifetime #2 defined on the block at 2:24...
+test.rs:2 fn bar(x: &amp;Foo) -&gt; &amp;int {
+test.rs:3     &amp;x.y
+test.rs:4 }
+test.rs:3:5: 3:9 note: ...so that types are compatible (expected `&amp;int` but found `&amp;int`)
+test.rs:3     &amp;x.y
+              ^~~~
+</code></p>
+
+<p>It turns out that the error above falls into the <code>SubSupConflict</code> category. In general, <code>SubSupConflict</code> error message contains one error message, four notes, and has the following format (as an aside, <code>SupSupConflict</code> has a similar format):</p>
+
+<p><code>rust
+error: error message
+note: description that lifetime of region variable v (that we want to infer) is bounded by sup_region
+note: description of why constraint(v, sup_region) is created
+note: description that lifetime of sub_region is bounded by v
+note: description of why constraint(sub_region, v) is created
+</code></p>
+
+<p>The error message (+ notes) above has the following deficiencies:</p>
+
+<ul>
+  <li>
+    <p>It’s too long and intimidating</p>
+  </li>
+  <li>
+    <p>The description is fairly opaque</p>
+  </li>
+  <li>
+    <p>Even though it’s long, <strong>it does not even describe the problem completely</strong></p>
+  </li>
+</ul>
+
+<p>To elaborate on the last bullet point, the description of the problem is this: 1) <code>sub_region</code> is subregion of <code>v</code>, 2) <code>v</code> is subregion of <code>sup_region</code>, 3) thus, <code>sub_region</code> is subregion of <code>sup_region</code>, but that does not hold. As we can see, number 3 is missing.</p>
+
+<h2 id="suggestion">Suggestion</h2>
+
+<p>My suggestion is to add a note to include 3. Adding another note, however, would make an already long error message even longer. Personally, I feel that since the second and fourth notes do not describe the problem directly, they are of secondary importance and should be removed. I would also swap the first and third notes and change the language a bit to make it a smoother reading experience. It may also be good to highlight a “lifetime block” so that the user can more easily see what we are referring to.</p>
+
+<p>Putting all the above together, we would have something as follows. The hash symbol # is meant to represent highlighted block (it should highlight the brackets and some characters, too, but I don’t know how to overlap them). Note that even though we swap the first and third notes, we always enumerate anonymous lifetimes in ascending order:</p>
+
+<p><code>rust
+test.rs:3:5: 3:9 error: cannot infer an appropriate lifetime 'v for borrow expression due to conflicting requirements
+test.rs:3     &amp;x.y
+              ^~~~
+test.rs:2:25: 4:2 note: first, the anonymous lifetime #1 (defined on the block at 2:24) is bounded by 'v
+test.rs:2 fn bar(x: &amp;Foo) -&gt; &amp;int {
+test.rs:3 ####&amp;x.y#################
+test.rs:4 }
+test.rs:2:25: 4:2 note: also, 'v is bounded by the anonymous lifetime #2 (defined on the block at 2:24)
+test.rs:2 fn bar(x: &amp;Foo) -&gt; &amp;int {
+test.rs:3 ####&amp;x.y#################
+test.rs:4 }
+note: however, the anonymous lifetime #1 is not bounded by the anonymous lifetime #2
+</code></p>
+
+<p>Instead of “is bounded by”, something like “is a sub-lifetime of” may be good, too.</p>
+
+<h2 id="discussions-and-caveats">Discussions and caveats</h2>
+
+<p>The example above turns out to be rather silly since anonymous lifetimes #1 and #2 seem to refer to the same block, and yet there’s conflict. I tried to investigate how this error arose in the first place by looking at the debug output, but there are too many details I do not understand as of now. I’ll try to enumerate some of them in a later section.</p>
+
+<p>Also, I’m not sure if removing the second and fourth notes (about why the constraints are there) is a good idea. I personally wouldn’t miss them since I have never found them helpful, but someone more knowledgeable about Rust’s lifetime inference may. A solution to this would be to have a verbose option for the power users.</p>
+
+<p>For highlighting a long block, I would probably use the custom span note that I added in my PR from last week. For example, supposed our function is more than 6 lines long:</p>
+
+<p><code>rust
+fn foo(x: &amp;Foo) -&gt; &amp;int {
+    2;
+    3;
+    4;
+    5;
+    6;
+    &amp;x.bar
+}
+</code></p>
+
+<p>What the default span note does when displaying a span of more than 6 lines is to strip out all the remaining lines, which looks like this (highlight included)</p>
+
+<p><code>
+test.rs:2:25: 9:2 note: first, the lifetime cannot outlive the anonymous lifetime #1 defined on the block at 2:24...
+test.rs:2 fn foo(x: &amp;Foo) -&gt; &amp;int {
+test.rs:3 ####2;###################
+test.rs:4 ####3;###################
+test.rs:5 ####4;###################
+test.rs:6 ####5;###################
+test.rs:7 ####6;###################
+          ...
+</code></p>
+
+<p>However, this does not give a good view of the whole scope of the lifetime. What my custom span note does is display the first and last lines, and blank out the middle (currently it also always add an arrow at the end, so I’ll have to modify it a bit). One added advantage is that it would make the error message takes less space:</p>
+
+<p><code>rust
+test.rs:2:25: 9:2 note: first, the lifetime cannot outlive the anonymous lifetime #1 defined on the block at 2:24...
+test.rs:2 fn foo(x: &amp;Foo) -&gt; &amp;int {
+...       #########################
+test.rs:9 }
+</code></p>
+
+<p>Regrettably, all this is a far cry from giving a concrete feedback like “missing a lifetime parameter” or “you may need to insert a lifetime” (that said, one thing that I wonder lately is: are all SubSupConflict and SupSupConflict errors caused by missing lifetime parameter?), but I will need to study up more on lifetime, which seems to include a lot of subtle details. If possible, I would like to just suggest outright “perhaps you mean to declare <code>fn bar&lt;'a&gt;(x: &amp;'a Foo) -&gt; &amp;'a int</code>?”</p>
+
+<h2 id="things-i-still-need-to-understand">Things I still need to understand</h2>
+
+<p>This is the section where I get to wail like a baby and lament about all that is wrong with the world. The data structures are pretty well-commented, but since there are so many details, I end up getting confused. For example, this is what represents a <a href="https://github.com/mozilla/rust/blob/5a618129b842f875dac5531ce7b8385fe4fcda6c/src/librustc/middle/ty.rs#L460-L495">region</a> (comments removed):</p>
+
+<p><code>rust
+pub enum Region {
+    ReEarlyBound(ast::NodeId, uint, ast::Ident),
+    ReLateBound(ast::NodeId, BoundRegion),
+    ReFree(FreeRegion),
+    ReScope(NodeId),
+    ReStatic,
+    ReInfer(InferRegion),
+    ReEmpty,
+}
+</code></p>
+
+<p>What is a “region bound”, and once again, what exactly is a free region? The <code>FreeRegion</code> enum also has a <code>BoundRegion</code> associated with it: why is that the case?</p>
+
+<p>Here is the signature for <a href="https://github.com/mozilla/rust/blob/5a618129b842f875dac5531ce7b8385fe4fcda6c/src/librustc/middle/typeck/infer/mod.rs#L144-L195">SubregionOrigin</a>:</p>
+
+<p><code>rust
+pub enum SubregionOrigin {
+    Subtype(TypeTrace),                        // (*)
+    InfStackClosure(Span),                     // (*)
+    InvokeClosure(Span),                       // (*)
+    DerefPointer(Span),
+    FreeVariable(Span),                        // (*)
+    IndexSlice(Span),                          // (*)
+    RelateObjectBound(Span),
+    Reborrow(Span),                            // (*)
+    ReferenceOutlivesReferent(ty::t, Span),
+    BindingTypeIsNotValidAtDecl(Span),         // (*)
+    CallRcvr(Span),                            // (*)
+    CallArg(Span),                             // (*)
+    CallReturn(Span),                          // (*)
+    AddrOf(Span),
+    AutoBorrow(Span),                          // (*)
+}
+</code></p>
+
+<p>This means that there is a ton of specific reasons for a constraint to be added. The ones that are marked with stars are those I’m not quite clear on yet. Also, it seems that this enum serves the dual purpose of indicating why a constraint is added and the cause of error (in particular, <code>ReferenceOutlivesReferent</code> and <code>BindingTypeIsNotValidAtDecl</code> look like they are for error reporting).</p>
+
+<p>There are also many variants of the <code>RegionVariableOrigin</code> that I do not understand, but I think they will be clearer once I know what a region bound is.</p>
+
+<h2 id="moving-forward">Moving forward</h2>
+
+<p>I expect many of these questions will become clearer as I read the code more, but unfortunately it’s a slow process. I’m not quite clear on what to do now. Maybe I can start implementing the suggestions I made in this post.</p>
+]]></content>
+  </entry>
+  
+  <entry>
     <title type="html"><![CDATA[Some Ideas for Improving Rust's Lifetime Error Messages]]></title>
     <link href="http://ktt3ja.github.io/blog/2014/01/20/some-ideas-for-improving-rusts-lifetime-error-messages/"/>
     <updated>2014-01-20T19:21:48-05:00</updated>
     <id>http://ktt3ja.github.io/blog/2014/01/20/some-ideas-for-improving-rusts-lifetime-error-messages</id>
-    <content type="html"><![CDATA[<p>This semester I have an opportunity to do an independent study on the Rust compiler, supervised by my professor David Evans. The particular topic I&rsquo;m thinking of exploring right now is the Rust lifetime system. This blog will serve as a place where I can document my progress (unless I feel lazy about blogging and this becomes the last post). It will also (hopefully) serve the dual purpose of showing professor Evans that I&rsquo;m not slacking off.</p>
+    <content type="html"><![CDATA[<p>This semester I have an opportunity to do an independent study on the Rust compiler, supervised by my professor David Evans. The particular topic I’m thinking of exploring right now is the Rust lifetime system. This blog will serve as a place where I can document my progress (unless I feel lazy about blogging and this becomes the last post). It will also (hopefully) serve the dual purpose of showing professor Evans that I’m not slacking off.</p>
 
 <p>If I have to rate my current knowledge of Rust, on a scale of 0 (no clue) to 10 (mastery), I would put myself at a 3. Embarrassingly, one crucial topic that I have always had trouble dealing with is Rust lifetime. People often say that we should keep learning different languages to explore new ways of thinking. For Rust, the new thing it offers is making the programmer explicitly aware of the lifetime of objects. Thus, given my lack of understanding of lifetime, I have plenty of reasons to study up on it.</p>
 
 <p>As such, if anything I write is incorrect, I would appreciate it if someone were to point it out.</p>
 
-<p>My current plan is to 1) read up the documentation on lifetime and the borrow-checker code (which handles lifetime)  and 2) improve the lifetime error messages. After going &frac14;th of the way through the documentation <code>middle::borrowck::gather_loans::doc</code>, I feel that I understand it a little better now, and a few ideas have formed in my head.</p>
+<p>My current plan is to 1) read up the documentation on lifetime and the borrow-checker code (which handles lifetime)  and 2) improve the lifetime error messages. After going 1/4th of the way through the documentation <code>middle::borrowck::gather_loans::doc</code>, I feel that I understand it a little better now, and a few ideas have formed in my head.</p>
 
-<h2>Idea #1</h2>
+<h2 id="idea-1">Idea #1</h2>
 
-<p>This idea wasn&rsquo;t thought of by me but given by Niko Matsakis and Patrick Walton. The idea is to detect common error patterns and suggest a fix. For example, currently, if we compile the following function:</p>
+<p>This idea wasn’t thought of by me but given by Niko Matsakis and Patrick Walton. The idea is to detect common error patterns and suggest a fix. For example, currently, if we compile the following function:</p>
 
-<p>```rust
+<p><code>rust
 struct Foo { y: int }
-fn bar(x: &amp;Foo) &ndash;> &amp;int {</p>
-
-<pre><code>&amp;x.y
-</code></pre>
-
-<p>}
-```</p>
+fn bar(x: &amp;Foo) -&gt; &amp;int {
+    &amp;x.y
+}
+</code></p>
 
 <p>we get all these scary-looking messages</p>
 
-<p>```rust
+<p><code>rust
 test.rs:3:5: 3:9 error: cannot infer an appropriate lifetime for borrow expression due to conflicting requirements
-test.rs:3     &amp;x.y</p>
-
-<pre><code>          ^~~~
-</code></pre>
-
-<p>test.rs:2:25: 4:2 note: first, the lifetime cannot outlive the anonymous lifetime #1 defined on the block at 2:24&hellip;
-test.rs:2 fn bar(x: &amp;Foo) &ndash;> &amp;int {
+test.rs:3     &amp;x.y
+              ^~~~
+test.rs:2:25: 4:2 note: first, the lifetime cannot outlive the anonymous lifetime #1 defined on the block at 2:24...
+test.rs:2 fn bar(x: &amp;Foo) -&gt; &amp;int {
 test.rs:3     &amp;x.y
 test.rs:4 }
-test.rs:3:5: 3:9 note: &hellip;so that reference does not outlive borrowed content
-test.rs:3     &amp;x.y</p>
-
-<pre><code>          ^~~~
-</code></pre>
-
-<p>test.rs:2:25: 4:2 note: but, the lifetime must be valid for the anonymous lifetime #2 defined on the block at 2:24&hellip;
-test.rs:2 fn bar(x: &amp;Foo) &ndash;> &amp;int {
+test.rs:3:5: 3:9 note: ...so that reference does not outlive borrowed content
+test.rs:3     &amp;x.y
+              ^~~~
+test.rs:2:25: 4:2 note: but, the lifetime must be valid for the anonymous lifetime #2 defined on the block at 2:24...
+test.rs:2 fn bar(x: &amp;Foo) -&gt; &amp;int {
 test.rs:3     &amp;x.y
 test.rs:4 }
-test.rs:3:5: 3:9 note: &hellip;so that types are compatible (expected <code>&amp;int</code> but found <code>&amp;int</code>)
-test.rs:3     &amp;x.y</p>
+test.rs:3:5: 3:9 note: ...so that types are compatible (expected `&amp;int` but found `&amp;int`)
+test.rs:3     &amp;x.y
+              ^~~~
+</code></p>
 
-<pre><code>          ^~~~
-</code></pre>
-
-<p>```</p>
-
-<p>It would be nice if in this particular case, we can just tell the user to introduce a lifetime parameter, or even better, give them something like: &ldquo;perhaps you mean to declare <code>fn bar&lt;'a&gt;(x: &amp;'a Foo) -&gt; &amp;'a int</code>?&rdquo;</p>
+<p>It would be nice if in this particular case, we can just tell the user to introduce a lifetime parameter, or even better, give them something like: “perhaps you mean to declare <code>fn bar&lt;'a&gt;(x: &amp;'a Foo) -&gt; &amp;'a int</code>?”</p>
 
 <p>One feedback I should seek from others is: are all those notes necessary? Personally, my eyes just glance over them. I have never understood them. Perhaps there are other instances where they may be useful.</p>
 
-<h3>Idea #2</h3>
+<h3 id="idea-2">Idea #2</h3>
+
+<p>Here’s an idea that <a href="https://github.com/ezyang">ezyang</a> had. He posted this <a href="https://gist.github.com/ezyang/8033155">gist</a> on IRC last month, though at the time I had no idea what he was doing.</p>
 
 <p>When the Rust compiler reports an error because of a previous borrow, it may be helpful to note where that borrow ends. For example, currently the program</p>
 
-<p>```rust
-fn main() {</p>
-
-<pre><code>let mut x: uint = 2;
-let y = &amp;mut x;
-let z = &amp;x;
-</code></pre>
-
-<p>}
-```</p>
+<p><code>rust
+fn main() {
+    let mut x: uint = 2;
+    let y = &amp;mut x;
+    let z = &amp;x;
+}
+</code></p>
 
 <p>reports</p>
 
-<p><code>``rust
-test.rs:4:13: 4:15 error: cannot borrow</code>x` as immutable because it is also borrowed as mutable
-test.rs:4     let z = &x;</p>
-
-<pre><code>                  ^~
-</code></pre>
-
-<p>test.rs:3:13: 3:19 note: previous borrow of <code>x</code> occurs here
-test.rs:3     let y = &amp;mut x;</p>
-
-<pre><code>                  ^~~~~~
-</code></pre>
-
-<p>```</p>
+<p><code>rust
+test.rs:4:13: 4:15 error: cannot borrow `x` as immutable because it is also borrowed as mutable
+test.rs:4     let z = &amp;x;
+                      ^~
+test.rs:3:13: 3:19 note: previous borrow of `x` occurs here
+test.rs:3     let y = &amp;mut x;
+                      ^~~~~~
+</code></p>
 
 <p>It may be good to add something like:</p>
 
-<p>```rust</p>
-
-<pre><code>      fn main() {
-          let mut x: uint = 2;
-          let y = &amp;mut x;
-          let z = &amp;x;
-      }
-</code></pre>
-
-<p>note: ^ <code>y</code>&rsquo;s borrow of <code>x</code> ends here
-```</p>
+<p><code>rust
+          fn main() {
+              let mut x: uint = 2;
+              let y = &amp;mut x;
+              let z = &amp;x;
+          }
+note: ^ `y`'s borrow of `x` ends here
+</code></p>
 
 <p>One case this would be helpful in is when the borrow ends earlier or later than the user expects, and so he has a chance to correct his misconception. On the other hand, it adds extra noise to the compiler, and the compiler is already pretty noisy.</p>
 
-<p>Note: I believe ezyang originally had the idea of doing this last month, as indicated by this <a href="https://gist.github.com/ezyang/8033155">gist</a>.</p>
+<h3 id="idea-3">Idea #3</h3>
 
-<h3>Idea #3</h3>
+<p>I will begin this part with examples. First, let’s modify the program in Idea #2 a little bit. We will change the last line of the function so that <code>z</code> borrows from <code>x</code> mutably instead:</p>
 
-<p>I will begin this part with examples. First, let&rsquo;s modify the program in Idea #2 a little bit. We will change the last line of the function so that <code>z</code> borrows from <code>x</code> mutably instead:</p>
-
-<p>```rust
-fn main() {</p>
-
-<pre><code>let mut x: uint = 2;
-let y = &amp;mut x;
-let z = &amp;mut x;
-</code></pre>
-
-<p>}
-```</p>
+<p><code>rust
+fn main() {
+    let mut x: uint = 2;
+    let y = &amp;mut x;
+    let z = &amp;mut x;
+}
+</code></p>
 
 <p>Compiling it would yield the following messages:</p>
 
-<p><code>``rust
-test.rs:4:13: 4:19 error: cannot borrow</code>x` as mutable more than once at a time
-test.rs:4     let z = &amp;mut x;</p>
-
-<pre><code>                  ^~~~~~
-</code></pre>
-
-<p>test.rs:3:13: 3:19 note: previous borrow of <code>x</code> as mutable occurs here
-test.rs:3     let y = &amp;mut x;</p>
-
-<pre><code>                  ^~~~~~
-</code></pre>
-
-<p>```</p>
+<p><code>rust
+test.rs:4:13: 4:19 error: cannot borrow `x` as mutable more than once at a time
+test.rs:4     let z = &amp;mut x;
+                      ^~~~~~
+test.rs:3:13: 3:19 note: previous borrow of `x` as mutable occurs here
+test.rs:3     let y = &amp;mut x;
+                      ^~~~~~
+</code></p>
 
 <p>While these messages and the messages in Idea #2 are correct, they have two shortcomings:</p>
 
 <ol>
-<li><p>A mutable borrow prevents <em>both</em> mutable and immutable borrows. The cause of these two errors are essentially the same, but currently it sounds like they are different. It is also a bit misleading to output &ldquo;error: cannot borrow <code>x</code> as immutable because it is also borrowed as mutable&rdquo; when it cannot even be borrowed as mutable.</p></li>
-<li><p>They fail to convey one key point: <strong>a borrow of a variable subsequently restricts the usage of that variable in some ways until that borrow ends</strong>.</p></li>
+  <li>
+    <p>A mutable borrow prevents <em>both</em> mutable and immutable borrows. The cause of these two errors are essentially the same, but currently it sounds like they are different. It is also a bit misleading to output “error: cannot borrow <code>x</code> as immutable because it is also borrowed as mutable” when it cannot even be borrowed as mutable.</p>
+  </li>
+  <li>
+    <p>They fail to convey one key point: <strong>a borrow of a variable subsequently restricts the usage of that variable in some ways until that borrow ends</strong>.</p>
+  </li>
 </ol>
-
 
 <p>Thus, in this particular instance, I think we would be well served by outputting the same error message for both and elaborating the note:</p>
 
-<p><code>``rust
-test.rs:4:13: 4:19 error: cannot borrow</code>x` because it is already borrowed as mutable
-test.rs:4     let z = &amp;x      // or &amp;mut x</p>
+<p><code>rust
+test.rs:4:13: 4:19 error: cannot borrow `x` because it is already borrowed as mutable
+test.rs:4     let z = &amp;x      // or &amp;mut x
+                      ^~~~~~
+test.rs:3:13: 3:19 note: previous borrow of `x` as mutable occurs here; a mutable borrow
+prevents subsequent borrow or modification of variable `x` until the borrow ends.
+test.rs:3     let y = &amp;mut x;
+                      ^~~~~~
+</code></p>
 
-<pre><code>                  ^~~~~~
-</code></pre>
-
-<p>test.rs:3:13: 3:19 note: previous borrow of <code>x</code> as mutable occurs here; a mutable borrow
-prevents subsequent borrow or modification of variable <code>x</code> until the borrow ends.
-test.rs:3     let y = &amp;mut x;</p>
-
-<pre><code>                  ^~~~~~
-</code></pre>
-
-<p>```</p>
-
-<p>My only qualm is the wording does not convey explicitly that the restriction is placed on the <em>variable</em> only (perhaps &ldquo;subsequent borrow or modification <em>using</em> variable <code>x</code>&rdquo; would be better?)</p>
+<p>My only qualm is the wording does not convey explicitly that the restriction is placed on the <em>variable</em> only (perhaps “subsequent borrow or modification <em>using</em> variable <code>x</code>” would be better?)</p>
 
 <p>To summarize Idea #3, I believe that borrow checker errors can be conveyed better by focusing on the <em>restriction</em> that the original borrow places rather than reporting the precise details at the error site.</p>
 ]]></content>
