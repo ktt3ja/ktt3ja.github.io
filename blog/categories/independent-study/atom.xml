@@ -4,7 +4,7 @@
   <title><![CDATA[Category: Independent Study | insert title]]></title>
   <link href="http://ktt3ja.github.io/blog/categories/independent-study/atom.xml" rel="self"/>
   <link href="http://ktt3ja.github.io/"/>
-  <updated>2014-02-02T20:29:29-05:00</updated>
+  <updated>2014-02-05T23:28:33-05:00</updated>
   <id>http://ktt3ja.github.io/</id>
   <author>
     <name><![CDATA[Kiet Tran]]></name>
@@ -145,23 +145,23 @@ note: description of why constraint(sub_region, v) is created
 
 <h2 id="suggestion">Suggestion</h2>
 
-<p>My suggestion is to add a note to include 3. Adding another note, however, would make an already long error message even longer. Personally, I feel that since the second and fourth notes do not describe the problem directly, they are of secondary importance and should be removed. I would also swap the first and third notes and change the language a bit to make it a smoother reading experience. It may also be good to highlight a “lifetime block” so that the user can more easily see what we are referring to.</p>
+<p>My suggestion is to add a note to include 3. Adding another note, however, would make an already long error message even longer. Personally, I feel that since the second and fourth notes do not describe the problem directly, they are of secondary importance and should be removed. I would also swap the first and third notes and change the language a bit to make it a smoother reading experience.</p>
 
-<p>Putting all the above together, we would have something as follows. The hash symbol # is meant to represent highlighted block (it should highlight the brackets and some characters, too, but I don’t know how to overlap them). Note that even though we swap the first and third notes, we always enumerate anonymous lifetimes in ascending order:</p>
+<p>Putting all the above together, we would have something as follows:</p>
 
 <p><code>rust
 test.rs:3:5: 3:9 error: cannot infer an appropriate lifetime 'v for borrow expression due to conflicting requirements
 test.rs:3     &amp;x.y
               ^~~~
-test.rs:2:25: 4:2 note: first, the anonymous lifetime #1 (defined on the block at 2:24) is bounded by 'v
+test.rs:2:25: 4:2 note: first, the anonymous lifetime #2 (defined on the block at 2:24) is bounded by 'v
 test.rs:2 fn bar(x: &amp;Foo) -&gt; &amp;int {
-test.rs:3 ####&amp;x.y#################
+test.rs:3     &amp;x.y
 test.rs:4 }
-test.rs:2:25: 4:2 note: also, 'v is bounded by the anonymous lifetime #2 (defined on the block at 2:24)
+test.rs:2:25: 4:2 note: also, 'v is bounded by the anonymous lifetime #1 (defined on the block at 2:24)
 test.rs:2 fn bar(x: &amp;Foo) -&gt; &amp;int {
-test.rs:3 ####&amp;x.y#################
+test.rs:3     &amp;x.y
 test.rs:4 }
-note: however, the anonymous lifetime #1 is not bounded by the anonymous lifetime #2
+note: however, the anonymous lifetime #2 is not bounded by the anonymous lifetime #1
 </code></p>
 
 <p>Instead of “is bounded by”, something like “is a sub-lifetime of” may be good, too.</p>
@@ -172,7 +172,7 @@ note: however, the anonymous lifetime #1 is not bounded by the anonymous lifetim
 
 <p>Also, I’m not sure if removing the second and fourth notes (about why the constraints are there) is a good idea. I personally wouldn’t miss them since I have never found them helpful, but someone more knowledgeable about Rust’s lifetime inference may. A solution to this would be to have a verbose option for the power users.</p>
 
-<p>For highlighting a long block, I would probably use the custom span note that I added in my PR from last week. For example, supposed our function is more than 6 lines long:</p>
+<p>For long block, I would probably replace the current span note with the custom span note that I added in my PR from last week. For example, suppose our function is more than 6 lines long:</p>
 
 <p><code>rust
 fn foo(x: &amp;Foo) -&gt; &amp;int {
@@ -185,16 +185,16 @@ fn foo(x: &amp;Foo) -&gt; &amp;int {
 }
 </code></p>
 
-<p>What the default span note does when displaying a span of more than 6 lines is to strip out all the remaining lines, which looks like this (highlight included)</p>
+<p>What the default span note does when displaying a span of more than 6 lines is to strip out all the remaining lines, which looks like this:</p>
 
 <p><code>
 test.rs:2:25: 9:2 note: first, the lifetime cannot outlive the anonymous lifetime #1 defined on the block at 2:24...
 test.rs:2 fn foo(x: &amp;Foo) -&gt; &amp;int {
-test.rs:3 ####2;###################
-test.rs:4 ####3;###################
-test.rs:5 ####4;###################
-test.rs:6 ####5;###################
-test.rs:7 ####6;###################
+test.rs:3     2;
+test.rs:4     3;
+test.rs:5     4;
+test.rs:6     5;
+test.rs:7     6;
           ...
 </code></p>
 
@@ -203,7 +203,7 @@ test.rs:7 ####6;###################
 <p><code>rust
 test.rs:2:25: 9:2 note: first, the lifetime cannot outlive the anonymous lifetime #1 defined on the block at 2:24...
 test.rs:2 fn foo(x: &amp;Foo) -&gt; &amp;int {
-...       #########################
+...
 test.rs:9 }
 </code></p>
 
