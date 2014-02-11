@@ -1,0 +1,420 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Understanding Rust's Lifetime Inference - insert title</title>
+  <meta name="author" content="Kiet Tran">
+
+  
+  <meta name="description" content="Last week, I continued my single case study of the following function and the errors it generated: 1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20 &hellip;">
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://ktt3ja.github.io/blog/2014/02/10/understanding-rusts-lifetime-inference">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="/atom.xml" rel="alternate" title="insert title" type="application/atom+xml">
+  <script src="/javascripts/modernizr-2.0.js"></script>
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+  <script>!window.jQuery && document.write(unescape('%3Cscript src="./javascripts/libs/jquery.min.js"%3E%3C/script%3E'))</script>
+  <script src="/javascripts/octopress.js" type="text/javascript"></script>
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="http://fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="http://fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+
+  
+
+</head>
+
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="/">insert title</a></h1>
+  
+    <h2>Exploration of Lifetime</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="http://google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="q" value="site:ktt3ja.github.io" />
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+  <li><a href="/">Blog</a></li>
+  <li><a href="/blog/archives">Archives</a></li>
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content">
+      <div>
+<article class="hentry" role="article">
+  
+  <header>
+    
+      <h1 class="entry-title">Understanding Rust's Lifetime Inference</h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2014-02-10T17:12:11-05:00" pubdate data-updated="true">Feb 10<span>th</span>, 2014</time>
+        
+      </p>
+    
+  </header>
+
+
+<div class="entry-content"><p>Last week, I continued my single case study of the following function and the errors it generated:</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+<span class="line-number">7</span>
+<span class="line-number">8</span>
+<span class="line-number">9</span>
+<span class="line-number">10</span>
+<span class="line-number">11</span>
+<span class="line-number">12</span>
+<span class="line-number">13</span>
+<span class="line-number">14</span>
+<span class="line-number">15</span>
+<span class="line-number">16</span>
+<span class="line-number">17</span>
+<span class="line-number">18</span>
+<span class="line-number">19</span>
+<span class="line-number">20</span>
+<span class="line-number">21</span>
+<span class="line-number">22</span>
+</pre></td><td class="code"><pre><code class="rust"><span class="line"><span class="n">struct</span> <span class="n">Foo</span> <span class="p">{</span> <span class="n">y</span><span class="o">:</span> <span class="k">int</span> <span class="p">}</span>
+</span><span class="line"><span class="k">fn</span> <span class="n">bar</span><span class="p">(</span><span class="n">x</span><span class="o">:</span> <span class="o">&amp;</span><span class="n">Foo</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="o">&amp;</span><span class="k">int</span> <span class="p">{</span>
+</span><span class="line">    <span class="o">&amp;</span><span class="n">x</span><span class="p">.</span><span class="n">y</span>
+</span><span class="line"><span class="p">}</span>
+</span><span class="line">
+</span><span class="line"><span class="n">test</span><span class="p">.</span><span class="n">rs</span><span class="o">:</span><span class="m">3</span><span class="o">:</span><span class="m">5</span><span class="o">:</span> <span class="m">3</span><span class="o">:</span><span class="m">9</span> <span class="n">error</span><span class="o">:</span> <span class="n">cannot</span> <span class="n">infer</span> <span class="n">an</span> <span class="n">appropriate</span> <span class="n">lifetime</span> <span class="k">for</span> <span class="n">borrow</span> <span class="n">expression</span> <span class="n">due</span> <span class="n">to</span> <span class="n">conflicting</span> <span class="n">requirements</span>
+</span><span class="line"><span class="n">test</span><span class="p">.</span><span class="n">rs</span><span class="o">:</span><span class="m">3</span>     <span class="o">&amp;</span><span class="n">x</span><span class="p">.</span><span class="n">y</span>
+</span><span class="line">              <span class="o">^~~~</span>
+</span><span class="line"><span class="n">test</span><span class="p">.</span><span class="n">rs</span><span class="o">:</span><span class="m">2</span><span class="o">:</span><span class="m">25</span><span class="o">:</span> <span class="m">4</span><span class="o">:</span><span class="m">2</span> <span class="k">note</span><span class="o">:</span> <span class="n">first</span><span class="p">,</span> <span class="n">the</span> <span class="n">lifetime</span> <span class="n">cannot</span> <span class="n">outlive</span> <span class="n">the</span> <span class="n">anonymous</span> <span class="n">lifetime</span> <span class="err">#</span><span class="m">1</span> <span class="n">defined</span> <span class="n">on</span> <span class="n">the</span> <span class="n">block</span> <span class="n">at</span> <span class="m">2</span><span class="o">:</span><span class="m">24.</span><span class="p">..</span>
+</span><span class="line"><span class="n">test</span><span class="p">.</span><span class="n">rs</span><span class="o">:</span><span class="m">2</span> <span class="k">fn</span> <span class="n">bar</span><span class="p">(</span><span class="n">x</span><span class="o">:</span> <span class="o">&amp;</span><span class="n">Foo</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="o">&amp;</span><span class="k">int</span> <span class="p">{</span>
+</span><span class="line"><span class="n">test</span><span class="p">.</span><span class="n">rs</span><span class="o">:</span><span class="m">3</span>     <span class="o">&amp;</span><span class="n">x</span><span class="p">.</span><span class="n">y</span>
+</span><span class="line"><span class="n">test</span><span class="p">.</span><span class="n">rs</span><span class="o">:</span><span class="m">4</span> <span class="p">}</span>
+</span><span class="line"><span class="n">test</span><span class="p">.</span><span class="n">rs</span><span class="o">:</span><span class="m">3</span><span class="o">:</span><span class="m">5</span><span class="o">:</span> <span class="m">3</span><span class="o">:</span><span class="m">9</span> <span class="k">note</span><span class="o">:</span> <span class="p">...</span><span class="n">so</span> <span class="n">that</span> <span class="n">reference</span> <span class="n">does</span> <span class="n">not</span> <span class="n">outlive</span> <span class="n">borrowed</span> <span class="n">content</span>
+</span><span class="line"><span class="n">test</span><span class="p">.</span><span class="n">rs</span><span class="o">:</span><span class="m">3</span>     <span class="o">&amp;</span><span class="n">x</span><span class="p">.</span><span class="n">y</span>
+</span><span class="line">              <span class="o">^~~~</span>
+</span><span class="line"><span class="n">test</span><span class="p">.</span><span class="n">rs</span><span class="o">:</span><span class="m">2</span><span class="o">:</span><span class="m">25</span><span class="o">:</span> <span class="m">4</span><span class="o">:</span><span class="m">2</span> <span class="k">note</span><span class="o">:</span> <span class="n">but</span><span class="p">,</span> <span class="n">the</span> <span class="n">lifetime</span> <span class="n">must</span> <span class="k">be</span> <span class="n">valid</span> <span class="k">for</span> <span class="n">the</span> <span class="n">anonymous</span> <span class="n">lifetime</span> <span class="err">#</span><span class="m">2</span> <span class="n">defined</span> <span class="n">on</span> <span class="n">the</span> <span class="n">block</span> <span class="n">at</span> <span class="m">2</span><span class="o">:</span><span class="m">24.</span><span class="p">..</span>
+</span><span class="line"><span class="n">test</span><span class="p">.</span><span class="n">rs</span><span class="o">:</span><span class="m">2</span> <span class="k">fn</span> <span class="n">bar</span><span class="p">(</span><span class="n">x</span><span class="o">:</span> <span class="o">&amp;</span><span class="n">Foo</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="o">&amp;</span><span class="k">int</span> <span class="p">{</span>
+</span><span class="line"><span class="n">test</span><span class="p">.</span><span class="n">rs</span><span class="o">:</span><span class="m">3</span>     <span class="o">&amp;</span><span class="n">x</span><span class="p">.</span><span class="n">y</span>
+</span><span class="line"><span class="n">test</span><span class="p">.</span><span class="n">rs</span><span class="o">:</span><span class="m">4</span> <span class="p">}</span>
+</span><span class="line"><span class="n">test</span><span class="p">.</span><span class="n">rs</span><span class="o">:</span><span class="m">3</span><span class="o">:</span><span class="m">5</span><span class="o">:</span> <span class="m">3</span><span class="o">:</span><span class="m">9</span> <span class="k">note</span><span class="o">:</span> <span class="p">...</span><span class="n">so</span> <span class="n">that</span> <span class="n">types</span> <span class="n">are</span> <span class="n">compatible</span> <span class="p">(</span><span class="n">expected</span> <span class="err">`</span><span class="o">&amp;</span><span class="k">int</span><span class="err">`</span> <span class="n">but</span> <span class="n">found</span> <span class="err">`</span><span class="o">&amp;</span><span class="k">int</span><span class="err">`</span><span class="p">)</span>
+</span><span class="line"><span class="n">test</span><span class="p">.</span><span class="n">rs</span><span class="o">:</span><span class="m">3</span>     <span class="o">&amp;</span><span class="n">x</span><span class="p">.</span><span class="n">y</span>
+</span><span class="line">              <span class="o">^~~~</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<p>Recall from the <a href="/blog/2014/01/31/rusts-region-inference-error-diagnostic/">previous post</a> that this describes a <code>SubSupConflict</code>, meaning that lifetime #2 is a sub-lifetime of the lifetime of <code>&amp;x.y</code> (which we are trying to infer), and the lifetime of <code>&amp;x.y</code> is a sub-lifetime of lifetime #1. However, lifetime #2 is not necessarily a sub-lifetime of lifetime #1, and so we have to explicitly declare that it is. Note that the anonymous lifetime #1 came from <code>&amp;Foo</code> in the function parameter, and anonymous lifetime #2 came from the return value <code>&amp;int</code>. In this case, we indicate that they are the same lifetime by introducing a lifetime parameter (binding) <code>'a</code> and give both the same binding:</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+</pre></td><td class="code"><pre><code class="rust"><span class="line"><span class="k">fn</span> <span class="n">bar</span><span class="o">&lt;</span><span class="err">&#39;</span><span class="n">a</span><span class="o">&gt;</span><span class="p">(</span><span class="n">x</span><span class="o">:</span> <span class="o">&amp;</span><span class="err">&#39;</span><span class="n">a</span> <span class="n">Foo</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="o">&amp;</span><span class="err">&#39;</span><span class="n">a</span> <span class="k">int</span> <span class="p">{</span>
+</span><span class="line">    <span class="o">&amp;</span><span class="n">x</span><span class="p">.</span><span class="n">y</span>
+</span><span class="line"><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<h2 id="terminologies">Terminologies</h2>
+
+<p>One potential source of confusion when it comes to lifetime parameter is that it’s slightly different from function parameter. Here, it’s helpful to introduce a couple terminologies: free lifetime and bound lifetime.</p>
+
+<p>The terms “free” and “bound” came from lambda calculus. For traditional function, a binding is analogous to a parameter, and other variables are considered free. For example, for some function <code>fn foo(x: int) { y }</code>, <code>x</code> would be a binding and <code>y</code> a free variable.</p>
+
+<p>Free lifetime and bound lifetime slightly differ from their traditional function counterparts in the following ways:</p>
+
+<ol>
+  <li>
+    <p>Return value <em>can</em> get a lifetime binding.</p>
+  </li>
+  <li>
+    <p>If a function parameter or return value uses a lifetime, then it gets a lifetime binding even when we don’t explicitly give it one. A function parameter or return value without a named binding is given an anonymous binding #<em>n</em> for some <em>n</em> (this is where the name “anonymous lifetime” came from)</p>
+  </li>
+  <li>
+    <p>When we typecheck the body of a function, we treat those lifetimes as free instead.</p>
+  </li>
+</ol>
+
+<p>Thus, “free lifetime” and “bound lifetime” are not mutually exclusive; instead, they represent different concepts. The reason why we treat lifetimes from function parameters as free is because they may have arbitrary lifetimes depending on what are passed in (that’s why another way to view free lifetime is “one that’s unbounded above”). Also, Rust doesn’t attempt to infer lifetime of return value, so it’s given the same treatment.</p>
+
+<p>What is the point of having lifetime binding, then? Essentially, it serves these two purposes:</p>
+
+<ul>
+  <li>
+    <p>To indicate that a group of function parameters and/or return value have the same lifetime</p>
+  </li>
+  <li>
+    <p>To name a lifetime in case of error (though this ends up being not very helpful when a binding is anonymous)</p>
+  </li>
+</ul>
+
+<h2 id="case-study-continued">Case study continued</h2>
+
+<p>This section doesn’t describe anything new except giving a small peek inside the Rust compiler. Here is Rust’s representation of <a href="https://github.com/mozilla/rust/blob/cf9164f94c6a7e3717f67b1fb74a7662639835f0/src/librustc/middle/ty.rs#L507-L510">free lifetime</a>:</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+</pre></td><td class="code"><pre><code class="rust"><span class="line"><span class="n">pub</span> <span class="n">struct</span> <span class="n">FreeRegion</span> <span class="p">{</span>
+</span><span class="line">    <span class="n">scope_id</span><span class="o">:</span> <span class="n">NodeId</span><span class="p">,</span>
+</span><span class="line">    <span class="n">bound_region</span><span class="o">:</span> <span class="n">BoundRegion</span>
+</span><span class="line"><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<p>Here, <code>scope_id</code> refers to the function block the lifetime is bounded to. <a href="https://github.com/mozilla/rust/blob/cf9164f94c6a7e3717f67b1fb74a7662639835f0/src/librustc/middle/ty.rs#L513-L525">BoundRegion</a> refers to bound lifetime and has the following representation:</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+<span class="line-number">7</span>
+<span class="line-number">8</span>
+<span class="line-number">9</span>
+<span class="line-number">10</span>
+<span class="line-number">11</span>
+<span class="line-number">12</span>
+<span class="line-number">13</span>
+</pre></td><td class="code"><pre><code class="rust"><span class="line"><span class="n">pub</span> <span class="k">enum</span> <span class="n">BoundRegion</span> <span class="p">{</span>
+</span><span class="line">    <span class="c1">/// An anonymous region parameter for a given fn (&amp;T)</span>
+</span><span class="line">    <span class="n">BrAnon</span><span class="p">(</span><span class="k">uint</span><span class="p">),</span>
+</span><span class="line">
+</span><span class="line">    <span class="c1">/// Named region parameters for functions (a in &amp;&#39;a T)</span>
+</span><span class="line">    <span class="c1">///</span>
+</span><span class="line">    <span class="c1">/// The def-id is needed to distinguish free regions in</span>
+</span><span class="line">    <span class="c1">/// the event of shadowing.</span>
+</span><span class="line">    <span class="n">BrNamed</span><span class="p">(</span><span class="n">ast</span><span class="o">::</span><span class="n">DefId</span><span class="p">,</span> <span class="n">ast</span><span class="o">::</span><span class="n">Ident</span><span class="p">),</span>
+</span><span class="line">
+</span><span class="line">    <span class="c1">/// Fresh bound identifiers created during GLB computations.</span>
+</span><span class="line">    <span class="n">BrFresh</span><span class="p">(</span><span class="k">uint</span><span class="p">),</span>
+</span><span class="line"><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<p>From the function that we are studying,</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+</pre></td><td class="code"><pre><code class="rust"><span class="line"><span class="k">fn</span> <span class="n">bar</span><span class="p">(</span><span class="n">x</span><span class="o">:</span> <span class="o">&amp;</span><span class="n">Foo</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="o">&amp;</span><span class="k">int</span> <span class="p">{</span>
+</span><span class="line">    <span class="o">&amp;</span><span class="n">x</span><span class="p">.</span><span class="n">y</span>
+</span><span class="line"><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<p>the Rust compiler creates the free lifetimes with bindings <code>BrAnon(0)</code> and <code>BrAnon(1)</code> out of the function parameter and return value, respectively. For brevity, we will refer to the former free lifetime as <code>free(a#0)</code> and the latter <code>free(a#1)</code>. Also, let <code>'v</code> be the lifetime of <code>&amp;x.y</code>, which we are trying to infer, and let <code>a &lt;= b</code> be the constraint that lifetime <code>a</code> has to be a sub-lifetime of lifetime <code>b</code>.</p>
+
+<p>As the compiler walks through this function, it creates four constraints. The two that are relevant are <code>free(a#1) &lt;= 'v</code> and <code>'v &lt;= free(a#0)</code>, respectively. At the beginning, it will go through all the constraints where <code>'v</code> is the “bigger” lifetime, which in this case is <code>free(a#1) &lt;= 'v</code>. At this point, it infers that <code>'v</code> also has the lifetime <code>free(a#1)</code>. Thus, it follows that <code>free(a#1) &lt;= free(a#0)</code>. However, since these lifetimes are free, we cannot be sure how “big” either is, and so it’s not necessarily the case that one is a sub-lifetime of the other. As the result, we get an error.</p>
+
+<h2 id="improving-the-error-message">Improving the error message</h2>
+
+<p>From this case study, it occurred to me that all SubSupConflict <code>sub_r &lt;= ... &lt;= 'v &lt;= ... &lt;= sup_r</code>, where <code>sub_r</code> and <code>sup_r</code> are free lifetimes can use the error message “define the same lifetime parameter on <code>r_sub</code> and <code>r_sup</code>”.</p>
+
+<p>This leads me to believe that I now have a strategy to make Idea #1 from my <a href="/blog/2014/01/20/some-ideas-for-improving-rusts-lifetime-error-messages/">first post</a> a reality. Namely, for functions with similar form to the one above, I want to make a concrete suggestion:</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+</pre></td><td class="code"><pre><code class="rust"><span class="line"><span class="n">test</span><span class="p">.</span><span class="n">rs</span><span class="o">:</span><span class="m">3</span><span class="o">:</span><span class="m">5</span><span class="o">:</span> <span class="m">3</span><span class="o">:</span><span class="m">9</span> <span class="n">error</span><span class="o">:</span> <span class="n">cannot</span> <span class="n">infer</span> <span class="n">an</span> <span class="n">appropriate</span> <span class="n">lifetime</span> <span class="k">for</span> <span class="n">borrow</span>
+</span><span class="line"><span class="n">expression</span> <span class="n">due</span> <span class="n">to</span> <span class="n">conflicting</span> <span class="n">requirements</span>
+</span><span class="line"><span class="n">test</span><span class="p">.</span><span class="n">rs</span><span class="o">:</span><span class="m">3</span>     <span class="o">&amp;</span><span class="n">x</span><span class="p">.</span><span class="n">y</span>
+</span><span class="line">              <span class="o">^~~~</span>
+</span><span class="line"><span class="n">test</span><span class="p">.</span><span class="n">rs</span><span class="o">:</span><span class="m">3</span><span class="o">:</span><span class="m">5</span><span class="o">:</span> <span class="m">3</span><span class="o">:</span><span class="m">9</span> <span class="k">note</span><span class="o">:</span> <span class="n">consider</span> <span class="n">using</span> <span class="n">an</span> <span class="n">explicit</span> <span class="n">lifetime</span> <span class="n">parameter</span> <span class="k">as</span> <span class="n">shown</span><span class="o">:</span>
+</span><span class="line"><span class="k">fn</span> <span class="n">foo</span><span class="o">&lt;</span><span class="err">&#39;</span><span class="n">a</span><span class="o">&gt;</span><span class="p">(</span><span class="n">x</span><span class="o">:</span> <span class="o">&amp;</span><span class="err">&#39;</span><span class="n">a</span> <span class="n">Foo</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="o">&amp;</span><span class="err">&#39;</span><span class="n">a</span> <span class="k">int</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<p>Here is the strategy:</p>
+
+<ul>
+  <li>
+    <p>Check that <code>sub_r</code> and <code>sup_r</code> are both free lifetimes.</p>
+  </li>
+  <li>
+    <p>Check that at least one of <code>sub_r</code> or <code>sup_r</code> has anonymous binding.</p>
+  </li>
+  <li>
+    <p>Somehow identify that they come from a function declaration and obtain the AST of that function declaration.</p>
+  </li>
+  <li>
+    <p>Since the compiler appears to identify the first anonymous binding of a function with the number 0 and increment each subsequent one by 1, we may be able to use the same strategy to identify “where” to insert/replace the lifetime in the AST.</p>
+  </li>
+  <li>
+    <p>Use the Rust pretty printer to print the new function declaration.</p>
+  </li>
+</ul>
+
+<h2 id="questionss">Questions(s)</h2>
+
+<ul>
+  <li>
+    <p>Suppose that <code>sub_r</code> and <code>sup_r</code> come from function declaration. Is <code>sub_r</code> always the lifetime of the return value? If it is, we may not have to require at least one of <code>sub_r</code> and <code>sup_r</code> be anonymous.</p>
+  </li>
+  <li>
+    <p>Suppose that <code>sub_r</code> has a named binding <code>'a</code> and <code>sup_r</code> has an anonymous binding, and we infer that <code>sub_r</code> and <code>sup_r</code> should have the same binding, would there be a case where giving <code>sup_r</code> a binding <code>'a</code> would cause a new error?</p>
+  </li>
+</ul>
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+<span class="byline author vcard">Posted by <span class="fn">Kiet Tran</span></span>
+
+      
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2014-02-10T17:12:11-05:00" pubdate data-updated="true">Feb 10<span>th</span>, 2014</time>
+      
+
+
+    </p>
+    
+      <div class="sharing">
+  
+  <a href="//twitter.com/share" class="twitter-share-button" data-url="http://ktt3ja.github.io/blog/2014/02/10/understanding-rusts-lifetime-inference/" data-via="" data-counturl="http://ktt3ja.github.io/blog/2014/02/10/understanding-rusts-lifetime-inference/" >Tweet</a>
+  
+  
+  
+</div>
+
+    
+    <p class="meta">
+      
+        <a class="basic-alignment left" href="/blog/2014/01/31/rusts-region-inference-error-diagnostic/" title="Previous Post: Rust's Region Inference Error Diagnostic">&laquo; Rust's Region Inference Error Diagnostic</a>
+      
+      
+    </p>
+  </footer>
+</article>
+
+</div>
+
+<aside class="sidebar">
+  
+    <section>
+  <h1>Recent Posts</h1>
+  <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/2014/02/10/understanding-rusts-lifetime-inference/">Understanding Rust's Lifetime Inference</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2014/01/31/rusts-region-inference-error-diagnostic/">Rust's Region Inference Error Diagnostic</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2014/01/20/some-ideas-for-improving-rusts-lifetime-error-messages/">Some Ideas for Improving Rust's Lifetime Error Messages</a>
+      </li>
+    
+  </ul>
+</section>
+
+
+
+
+
+  
+</aside>
+
+
+    </div>
+  </div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2014 - Kiet Tran -
+  <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+  
+
+
+
+
+
+
+
+  <script type="text/javascript">
+    (function(){
+      var twitterWidgets = document.createElement('script');
+      twitterWidgets.type = 'text/javascript';
+      twitterWidgets.async = true;
+      twitterWidgets.src = '//platform.twitter.com/widgets.js';
+      document.getElementsByTagName('head')[0].appendChild(twitterWidgets);
+    })();
+  </script>
+
+
+
+
+
+</body>
+</html>
