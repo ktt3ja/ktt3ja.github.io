@@ -257,7 +257,7 @@
 
 <p>the Rust compiler creates the free lifetimes with bindings <code>BrAnon(0)</code> and <code>BrAnon(1)</code> out of the function parameter and return value, respectively. For brevity, we will refer to the former free lifetime as <code>free(a#0)</code> and the latter <code>free(a#1)</code>. Also, let <code>'v</code> be the lifetime of <code>&amp;x.y</code>, which we are trying to infer, and let <code>a &lt;= b</code> be the constraint that lifetime <code>a</code> has to be a sub-lifetime of lifetime <code>b</code>.</p>
 
-<p>As the compiler walks through this function, it creates four constraints. The two that are relevant are <code>free(a#1) &lt;= 'v</code> and <code>'v &lt;= free(a#0)</code>, respectively. At the beginning, it will go through all the constraints where <code>'v</code> is the “bigger” lifetime, which in this case is <code>free(a#1) &lt;= 'v</code>. At this point, it infers that <code>'v</code> also has the lifetime <code>free(a#1)</code>. Thus, it follows that <code>free(a#1) &lt;= free(a#0)</code>. However, since these lifetimes are free, we cannot be sure how “big” either is, and so it’s not necessarily the case that one is a sub-lifetime of the other. As the result, we get an error.</p>
+<p>As the compiler walks through this function, it creates four constraints. The two that are relevant are <code>free(a#1) &lt;= 'v</code> and <code>'v &lt;= free(a#0)</code>. At the beginning, it will go through all the constraints where <code>'v</code> is the “bigger” lifetime, which in this case is <code>free(a#1) &lt;= 'v</code>. At this point, it infers that <code>'v</code> also has the lifetime <code>free(a#1)</code>. Thus, it follows that <code>free(a#1) &lt;= free(a#0)</code>. However, since these lifetimes are free, we cannot be sure how “big” either is, and so it’s not necessarily the case that one is a sub-lifetime of the other. As the result, we get an error.</p>
 
 <h2 id="improving-the-error-message">Improving the error message</h2>
 
@@ -301,9 +301,11 @@
 
 <h2 id="questionss">Questions(s)</h2>
 
+<p>Here are some things I’m currently unclear about:</p>
+
 <ul>
   <li>
-    <p>Suppose that <code>sub_r</code> and <code>sup_r</code> come from function declaration. Is <code>sub_r</code> always the lifetime of the return value? If it is, we may not have to require at least one of <code>sub_r</code> and <code>sup_r</code> be anonymous.</p>
+    <p>Suppose that <code>sub_r</code> and <code>sup_r</code> come from function declaration. Is <code>sub_r</code> always the lifetime of the return value?</p>
   </li>
   <li>
     <p>Suppose that <code>sub_r</code> has a named binding <code>'a</code> and <code>sup_r</code> has an anonymous binding, and we infer that <code>sub_r</code> and <code>sup_r</code> should have the same binding, would there be a case where giving <code>sup_r</code> a binding <code>'a</code> would cause a new error?</p>
