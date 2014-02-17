@@ -4,7 +4,7 @@
   <title><![CDATA[insert title]]></title>
   <link href="http://ktt3ja.github.io/atom.xml" rel="self"/>
   <link href="http://ktt3ja.github.io/"/>
-  <updated>2014-02-13T01:03:19-05:00</updated>
+  <updated>2014-02-17T02:06:12-05:00</updated>
   <id>http://ktt3ja.github.io/</id>
   <author>
     <name><![CDATA[Kiet Tran]]></name>
@@ -89,7 +89,7 @@
     <p>Return value <em>can</em> get a lifetime binding.</p>
   </li>
   <li>
-    <p>If a function parameter or return value uses a lifetime, then it gets a lifetime binding even when we don’t explicitly give it one. A function parameter or return value without a named binding is given an anonymous binding #<em>n</em> for some <em>n</em> (this is where the name “anonymous lifetime” came from)</p>
+    <p>Function parameter or return value of the form <code>&amp;T</code> gets a lifetime binding even when we don’t explicitly give it one. A function parameter or return value without a named binding is given an anonymous binding #<em>n</em> for some <em>n</em> (this is where the name “anonymous lifetime” came from)</p>
   </li>
   <li>
     <p>When we typecheck the body of a function, we treat those lifetimes as free instead.</p>
