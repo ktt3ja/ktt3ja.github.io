@@ -184,7 +184,7 @@
     <p>Return value <em>can</em> get a lifetime binding.</p>
   </li>
   <li>
-    <p>Function parameter or return value of the form <code>&amp;T</code> gets a lifetime binding even when we don’t explicitly give it one. A function parameter or return value without a named binding is given an anonymous binding #<em>n</em> for some <em>n</em> (this is where the name “anonymous lifetime” came from)</p>
+    <p>If a function parameter or return value uses lifetimes, it gets lifetime bindings even when we don’t explicitly give it any. A function parameter or return value without a named binding may be given anonymous bindings of the form #<em>n</em> for some <em>n</em> (this is where the name “anonymous lifetime” came from). Note that just as you can write multiple lifetimes on a type declaration (for example, <code>&amp;'a &amp;'b Foo&lt;'c&gt;</code>), there may be multiple anonymous lifetimes associated with a single function parameter or return value.</p>
   </li>
   <li>
     <p>When we typecheck the body of a function, we treat those lifetimes as free instead.</p>
