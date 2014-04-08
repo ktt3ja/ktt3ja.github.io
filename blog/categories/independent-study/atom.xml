@@ -4,7 +4,7 @@
   <title><![CDATA[Category: Independent Study | insert title]]></title>
   <link href="http://ktt3ja.github.io/blog/categories/independent-study/atom.xml" rel="self"/>
   <link href="http://ktt3ja.github.io/"/>
-  <updated>2014-02-18T20:02:02-05:00</updated>
+  <updated>2014-04-07T21:27:21-04:00</updated>
   <id>http://ktt3ja.github.io/</id>
   <author>
     <name><![CDATA[Kiet Tran]]></name>
@@ -12,6 +12,279 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Cannot Move Out of Dereference of &amp;-pointer]]></title>
+    <link href="http://ktt3ja.github.io/blog/2014/04/07/cannot-move-out-of-dereference-of-and-pointer/"/>
+    <updated>2014-04-07T19:24:35-04:00</updated>
+    <id>http://ktt3ja.github.io/blog/2014/04/07/cannot-move-out-of-dereference-of-and-pointer</id>
+    <content type="html"><![CDATA[<p>Currently I’m looking at the “cannot move out of dereference of <code>&amp;</code>-pointer” class of errors, which I personally dread the most and find difficult to deal with. I don’t have a good idea about a better general way to present that error, however. Instead, I would like to simply special-casing the error in a match expression, which is where I encounter it the most.</p>
+
+<p>The problem with the way the error is currently presented in match expression is that (sometimes) it’s a half-way between “where” the value moves out and “where” we are attempting to move to. For example, from the following code snippet,</p>
+
+<p><code>rust
+fn main() {
+    let opt = &amp;Some(~1u32);
+    match *opt {
+        Some(num) =&gt; (),
+        None =&gt; ()
+    }
+}
+</code></p>
+
+<p>we will get this error:</p>
+
+<p><code>rust
+test.rs:10:9: 10:18 error: cannot move out of dereference of `&amp;`-pointer
+test.rs:10         Some(num) =&gt; (),
+                   ^~~~~~~~~
+</code></p>
+
+<p>Notice that the caret and tilde span through the whole <code>Some(num)</code> pattern. It’s accurate, too, because here we are not allowed to move the value out of <code>*opt</code>, and one variant of <code>*opt</code> is <code>Some(num)</code>. On the other hand, what we really want to tell to the user is that since <code>num</code> is capturing an owned pointer by value, it’s causing a move, and that’s essentially where the problem lies.</p>
+
+<p>I believe giving the user both information will make the story about this error message clearer:</p>
+
+<p><code>rust
+test.rs:9:11: 9:15 error: cannot move out of dereference of `&amp;`-pointer
+test.rs:9     match *opt {
+                    ^~~~
+test.rs:10:14: 10:17 note: attempting to move inner value to here (to prevent the move, you can use `ref` to capture value by reference)
+test.rs:10         Some(num) =&gt; (),
+                        ^~~
+</code></p>
+
+<p>Perhaps we can tell the user explicitly to use <code>ref num</code>, as opposed to just <code>ref</code>. In many cases, this simple step will solve the problem.</p>
+
+<p>The second way we could present the note is to insert <code>ref</code> into the match arm pattern explicitly, as follows:</p>
+
+<p><code>rust
+test.rs:9:11: 9:15 error: cannot move out of dereference of `&amp;`-pointer
+test.rs:9     match *opt {
+                    ^~~~
+test.rs:10:9: 10:18 note: to prevent the move and capture value by reference instead, change the arm to `Some(ref num)`
+test.rs:10         Some(num) =&gt; (),
+                   ^~~~~~~~~
+</code></p>
+
+<p>However, I’m not too fond of doing this because just injecting <code>ref</code> into the AST is more work than it looks. And writing a routine to generate a new arm seems overkill, especially when just telling the user to use <code>ref num</code> seems sufficient. In addition, I actually prefer the first note.</p>
+
+<p>That said, in some cases the second way has the advantage of generating less notes. Take this code snippet as an example:</p>
+
+<p>```rust
+enum Foo {
+    Foo1(~u32, ~u32),
+    Foo2,
+}</p>
+
+<p>fn main() {
+    let f = &amp;Foo1(~1u32, ~2u32);
+    match *f {
+        Foo1(num1, num2) =&gt; (),
+        Foo2 =&gt; ()
+    }
+}
+```</p>
+
+<p>Using the first method, the error and notes we generate would be:</p>
+
+<p><code>rust
+test.rs:8:11: 8:13 error: cannot move out of dereference of `&amp;`-pointer
+test.rs:8     match *f {
+                    ^~
+test.rs:9:14: 9:18 note: attempting to move inner value to here (to prevent the move, you can use `ref num1` to capture value by reference)
+test.rs:9         Foo1(num1, num2) =&gt; (),
+                       ^~~~
+test.rs:9:20: 9:24 note: attempting to move inner value to here (to prevent the move, you can use `ref num2` to capture value by reference)
+test.rs:9         Foo1(num1, num2) =&gt; (),
+                             ^~~~
+</code></p>
+
+<p>With the second method, we can generate one less note:</p>
+
+<p><code>rust
+test.rs:8:11: 8:13 error: cannot move out of dereference of `&amp;`-pointer
+test.rs:8     match *f {
+                    ^~
+test.rs:9:9: 9:25 note: to prevent the move and capture value by reference instead, change the arm to `Foo1(ref num1, ref num2)`
+test.rs:9         Foo1(num1, num2) =&gt; (),
+                  ^~~~~~~~~~~~~~~~
+</code></p>
+
+<p>I think either of them is an improvement to the current error message:</p>
+
+<p><code>rust
+test.rs:9:9: 9:25 error: cannot move out of dereference of `&amp;`-pointer
+test.rs:9         Foo1(num1, num2) =&gt; (),
+                  ^~~~~~~~~~~~~~~~
+test.rs:9:9: 9:25 error: cannot move out of dereference of `&amp;`-pointer
+test.rs:9         Foo1(num1, num2) =&gt; (),
+                  ^~~~~~~~~~~~~~~~
+</code></p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Understanding Rust's Lifetime Inference]]></title>
+    <link href="http://ktt3ja.github.io/blog/2014/02/10/understanding-rusts-lifetime-inference/"/>
+    <updated>2014-02-10T17:12:11-05:00</updated>
+    <id>http://ktt3ja.github.io/blog/2014/02/10/understanding-rusts-lifetime-inference</id>
+    <content type="html"><![CDATA[<p>Last week, I continued my single case study of the following function and the errors it generated:</p>
+
+<p>```rust
+struct Foo { y: int }
+fn bar(x: &amp;Foo) -&gt; &amp;int {
+    &amp;x.y
+}</p>
+
+<p>test.rs:3:5: 3:9 error: cannot infer an appropriate lifetime for borrow expression due to conflicting requirements
+test.rs:3     &amp;x.y
+              ^~~~
+test.rs:2:25: 4:2 note: first, the lifetime cannot outlive the anonymous lifetime #1 defined on the block at 2:24…
+test.rs:2 fn bar(x: &amp;Foo) -&gt; &amp;int {
+test.rs:3     &amp;x.y
+test.rs:4 }
+test.rs:3:5: 3:9 note: …so that reference does not outlive borrowed content
+test.rs:3     &amp;x.y
+              ^~~~
+test.rs:2:25: 4:2 note: but, the lifetime must be valid for the anonymous lifetime #2 defined on the block at 2:24…
+test.rs:2 fn bar(x: &amp;Foo) -&gt; &amp;int {
+test.rs:3     &amp;x.y
+test.rs:4 }
+test.rs:3:5: 3:9 note: …so that types are compatible (expected <code>&amp;int</code> but found <code>&amp;int</code>)
+test.rs:3     &amp;x.y
+              ^~~~
+```</p>
+
+<p>Recall from the <a href="/blog/2014/01/31/rusts-region-inference-error-diagnostic/">previous post</a> that this describes a <code>SubSupConflict</code>, meaning that lifetime #2 is a sub-lifetime of the lifetime of <code>&amp;x.y</code> (which we are trying to infer), and the lifetime of <code>&amp;x.y</code> is a sub-lifetime of lifetime #1. However, lifetime #2 is not necessarily a sub-lifetime of lifetime #1, and so we have to explicitly declare that it is. Note that the anonymous lifetime #1 came from <code>&amp;Foo</code> in the function parameter, and anonymous lifetime #2 came from the return value <code>&amp;int</code>. In this case, we indicate that they are the same lifetime by introducing a lifetime parameter (binding) <code>'a</code> and give both the same binding:</p>
+
+<p><code>rust
+fn bar&lt;'a&gt;(x: &amp;'a Foo) -&gt; &amp;'a int {
+    &amp;x.y
+}
+</code></p>
+
+<h2 id="terminologies">Terminologies</h2>
+
+<p>One potential source of confusion when it comes to lifetime parameter is that it’s slightly different from function parameter. Here, it’s helpful to introduce a couple terminologies: free lifetime and bound lifetime.</p>
+
+<p>The terms “free” and “bound” came from lambda calculus. For traditional function, a binding is analogous to a parameter, and other variables are considered free. For example, for some function <code>fn foo(x: int) { y }</code>, <code>x</code> would be a binding and <code>y</code> a free variable.</p>
+
+<p>Free lifetime and bound lifetime slightly differ from their traditional function counterparts in the following ways:</p>
+
+<ol>
+  <li>
+    <p>Return value <em>can</em> get a lifetime binding.</p>
+  </li>
+  <li>
+    <p>If a function parameter or return value uses lifetimes, it gets lifetime bindings even when we don’t explicitly give it any. A function parameter or return value without a named binding may be given anonymous bindings of the form #<em>n</em> for some <em>n</em> (this is where the name “anonymous lifetime” came from). Note that just as you can write multiple lifetimes on a type declaration (for example, <code>&amp;'a &amp;'b Foo&lt;'c&gt;</code>), there may be multiple anonymous lifetimes associated with a single function parameter or return value.</p>
+  </li>
+  <li>
+    <p>When we typecheck the body of a function, we treat those lifetimes as free instead.</p>
+  </li>
+</ol>
+
+<p>Thus, “free lifetime” and “bound lifetime” are not mutually exclusive; instead, they represent different concepts. The reason why we treat lifetimes from function parameters as free is because they may have arbitrary lifetimes depending on what are passed in (that’s why another way to view free lifetime is “one that’s unbounded above”). Also, Rust doesn’t attempt to infer lifetime of return value, so it’s given the same treatment.</p>
+
+<p>What is the point of having lifetime binding, then? Essentially, it serves these two purposes:</p>
+
+<ul>
+  <li>
+    <p>To indicate that a group of function parameters and/or return value have the same lifetime</p>
+  </li>
+  <li>
+    <p>To name a lifetime in case of error (though this ends up being not very helpful when a binding is anonymous)</p>
+  </li>
+</ul>
+
+<h2 id="case-study-continued">Case study continued</h2>
+
+<p>This section doesn’t describe anything new except giving a small peek inside the Rust compiler. Here is Rust’s representation of <a href="https://github.com/mozilla/rust/blob/cf9164f94c6a7e3717f67b1fb74a7662639835f0/src/librustc/middle/ty.rs#L507-L510">free lifetime</a>:</p>
+
+<p><code>rust
+pub struct FreeRegion {
+    scope_id: NodeId,
+    bound_region: BoundRegion
+}
+</code></p>
+
+<p>Here, <code>scope_id</code> refers to the function block the lifetime is bounded to. <a href="https://github.com/mozilla/rust/blob/cf9164f94c6a7e3717f67b1fb74a7662639835f0/src/librustc/middle/ty.rs#L513-L525">BoundRegion</a> refers to bound lifetime and has the following representation:</p>
+
+<p>```rust
+pub enum BoundRegion {
+    /// An anonymous region parameter for a given fn (&amp;T)
+    BrAnon(uint),</p>
+
+<pre><code>/// Named region parameters for functions (a in &amp;'a T)
+///
+/// The def-id is needed to distinguish free regions in
+/// the event of shadowing.
+BrNamed(ast::DefId, ast::Ident),
+
+/// Fresh bound identifiers created during GLB computations.
+BrFresh(uint), } ```
+</code></pre>
+
+<p>From the function that we are studying,</p>
+
+<p><code>rust
+fn bar(x: &amp;Foo) -&gt; &amp;int {
+    &amp;x.y
+}
+</code></p>
+
+<p>the Rust compiler creates the free lifetimes with bindings <code>BrAnon(0)</code> and <code>BrAnon(1)</code> out of the function parameter and return value, respectively. For brevity, we will refer to the former free lifetime as <code>free(a#0)</code> and the latter <code>free(a#1)</code>. Also, let <code>'v</code> be the lifetime of <code>&amp;x.y</code>, which we are trying to infer, and let <code>a &lt;= b</code> be the constraint that lifetime <code>a</code> has to be a sub-lifetime of lifetime <code>b</code>.</p>
+
+<p>As the compiler walks through this function, it creates four constraints. The two that are relevant are <code>free(a#1) &lt;= 'v</code> and <code>'v &lt;= free(a#0)</code>. At the beginning, it will go through all the constraints where <code>'v</code> is the “bigger” lifetime, which in this case is <code>free(a#1) &lt;= 'v</code>. At this point, it infers that <code>'v</code> also has the lifetime <code>free(a#1)</code>. Thus, it follows that <code>free(a#1) &lt;= free(a#0)</code>. However, since these lifetimes are free, we cannot be sure how “big” either is, and so it’s not necessarily the case that one is a sub-lifetime of the other. As the result, we get an error.</p>
+
+<h2 id="improving-the-error-message">Improving the error message</h2>
+
+<p>From this case study, it occurred to me that all SubSupConflict <code>sub_r &lt;= ... &lt;= 'v &lt;= ... &lt;= sup_r</code>, where <code>sub_r</code> and <code>sup_r</code> are free lifetimes can use the error message “define the same lifetime parameter on <code>r_sub</code> and <code>r_sup</code>”.</p>
+
+<p>This leads me to believe that I now have a strategy to make Idea #1 from my <a href="/blog/2014/01/20/some-ideas-for-improving-rusts-lifetime-error-messages/">first post</a> a reality. Namely, for functions with similar form to the one above, I want to make a concrete suggestion:</p>
+
+<p><code>rust
+test.rs:3:5: 3:9 error: cannot infer an appropriate lifetime for borrow
+expression due to conflicting requirements
+test.rs:3     &amp;x.y
+              ^~~~
+test.rs:3:5: 3:9 note: consider using an explicit lifetime parameter as shown:
+fn foo&lt;'a&gt;(x: &amp;'a Foo) -&gt; &amp;'a int
+</code></p>
+
+<p>Here is the strategy:</p>
+
+<ul>
+  <li>
+    <p>Check that <code>sub_r</code> and <code>sup_r</code> are both free lifetimes.</p>
+  </li>
+  <li>
+    <p>Check that at least one of <code>sub_r</code> or <code>sup_r</code> has anonymous binding.</p>
+  </li>
+  <li>
+    <p>Somehow identify that they come from a function declaration and obtain the AST of that function declaration.</p>
+  </li>
+  <li>
+    <p>Since the compiler appears to identify the first anonymous binding of a function with the number 0 and increment each subsequent one by 1, we may be able to use the same strategy to identify “where” to insert/replace the lifetime in the AST.</p>
+  </li>
+  <li>
+    <p>Use the Rust pretty printer to print the new function declaration.</p>
+  </li>
+</ul>
+
+<h2 id="questionss">Questions(s)</h2>
+
+<p>Here are some things I’m currently unclear about:</p>
+
+<ul>
+  <li>
+    <p>Suppose that <code>sub_r</code> and <code>sup_r</code> come from function declaration. Is <code>sub_r</code> always the lifetime of the return value?</p>
+  </li>
+  <li>
+    <p>Suppose that <code>sub_r</code> has a named binding <code>'a</code> and <code>sup_r</code> has an anonymous binding, and we infer that <code>sub_r</code> and <code>sup_r</code> should have the same binding, would there be a case where giving <code>sup_r</code> a binding <code>'a</code> would cause a new error?</p>
+  </li>
+</ul>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Rust's Region Inference Error Diagnostic]]></title>

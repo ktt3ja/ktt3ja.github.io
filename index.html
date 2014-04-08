@@ -9,26 +9,7 @@
   <meta name="author" content="Kiet Tran">
 
   
-  <meta name="description" content="Last week, I continued my single case study of the following function and the errors it generated: 1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-13
-14
-15
-16
-17
-18
-19
-20 &hellip;">
+  <meta name="description" content="Currently I’m looking at the “cannot move out of dereference of &amp;-pointer” class of errors, which I personally dread the most and find difficult &hellip;">
   
 
   <!-- http://t.co/dKP3o1e -->
@@ -84,6 +65,190 @@
     <div id="content">
       <div class="blog-index">
   
+  
+  
+    <article>
+      
+  <header>
+    
+      <h1 class="entry-title"><a href="/blog/2014/04/07/cannot-move-out-of-dereference-of-and-pointer/">Cannot Move Out of Dereference of &amp;-pointer</a></h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2014-04-07T19:24:35-04:00" pubdate data-updated="true">Apr 7<span>th</span>, 2014</time>
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>Currently I’m looking at the “cannot move out of dereference of <code>&amp;</code>-pointer” class of errors, which I personally dread the most and find difficult to deal with. I don’t have a good idea about a better general way to present that error, however. Instead, I would like to simply special-casing the error in a match expression, which is where I encounter it the most.</p>
+
+<p>The problem with the way the error is currently presented in match expression is that (sometimes) it’s a half-way between “where” the value moves out and “where” we are attempting to move to. For example, from the following code snippet,</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+<span class="line-number">7</span>
+</pre></td><td class="code"><pre><code class="rust"><span class="line"><span class="k">fn</span> <span class="n">main</span><span class="p">()</span> <span class="p">{</span>
+</span><span class="line">    <span class="k">let</span> <span class="n">opt</span> <span class="o">=</span> <span class="o">&amp;</span><span class="n">Some</span><span class="p">(</span><span class="o">~</span><span class="m">1</span><span class="k">u32</span><span class="p">);</span>
+</span><span class="line">    <span class="n">match</span> <span class="o">*</span><span class="n">opt</span> <span class="p">{</span>
+</span><span class="line">        <span class="n">Some</span><span class="p">(</span><span class="n">num</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">(),</span>
+</span><span class="line">        <span class="n">None</span> <span class="o">=&gt;</span> <span class="p">()</span>
+</span><span class="line">    <span class="p">}</span>
+</span><span class="line"><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<p>we will get this error:</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+</pre></td><td class="code"><pre><code class="rust"><span class="line"><span class="n">test</span><span class="p">.</span><span class="n">rs</span><span class="o">:</span><span class="m">10</span><span class="o">:</span><span class="m">9</span><span class="o">:</span> <span class="m">10</span><span class="o">:</span><span class="m">18</span> <span class="n">error</span><span class="o">:</span> <span class="n">cannot</span> <span class="n">move</span> <span class="n">out</span> <span class="n">of</span> <span class="n">dereference</span> <span class="n">of</span> <span class="err">`</span><span class="o">&amp;</span><span class="err">`</span><span class="o">-</span><span class="n">pointer</span>
+</span><span class="line"><span class="n">test</span><span class="p">.</span><span class="n">rs</span><span class="o">:</span><span class="m">10</span>         <span class="n">Some</span><span class="p">(</span><span class="n">num</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">(),</span>
+</span><span class="line">                   <span class="o">^~~~~~~~~</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<p>Notice that the caret and tilde span through the whole <code>Some(num)</code> pattern. It’s accurate, too, because here we are not allowed to move the value out of <code>*opt</code>, and one variant of <code>*opt</code> is <code>Some(num)</code>. On the other hand, what we really want to tell to the user is that since <code>num</code> is capturing an owned pointer by value, it’s causing a move, and that’s essentially where the problem lies.</p>
+
+<p>I believe giving the user both information will make the story about this error message clearer:</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+</pre></td><td class="code"><pre><code class="rust"><span class="line"><span class="n">test</span><span class="p">.</span><span class="n">rs</span><span class="o">:</span><span class="m">9</span><span class="o">:</span><span class="m">11</span><span class="o">:</span> <span class="m">9</span><span class="o">:</span><span class="m">15</span> <span class="n">error</span><span class="o">:</span> <span class="n">cannot</span> <span class="n">move</span> <span class="n">out</span> <span class="n">of</span> <span class="n">dereference</span> <span class="n">of</span> <span class="err">`</span><span class="o">&amp;</span><span class="err">`</span><span class="o">-</span><span class="n">pointer</span>
+</span><span class="line"><span class="n">test</span><span class="p">.</span><span class="n">rs</span><span class="o">:</span><span class="m">9</span>     <span class="n">match</span> <span class="o">*</span><span class="n">opt</span> <span class="p">{</span>
+</span><span class="line">                    <span class="o">^~~~</span>
+</span><span class="line"><span class="n">test</span><span class="p">.</span><span class="n">rs</span><span class="o">:</span><span class="m">10</span><span class="o">:</span><span class="m">14</span><span class="o">:</span> <span class="m">10</span><span class="o">:</span><span class="m">17</span> <span class="k">note</span><span class="o">:</span> <span class="n">attempting</span> <span class="n">to</span> <span class="n">move</span> <span class="n">inner</span> <span class="n">value</span> <span class="n">to</span> <span class="n">here</span> <span class="p">(</span><span class="n">to</span> <span class="n">prevent</span> <span class="n">the</span> <span class="n">move</span><span class="p">,</span> <span class="n">you</span> <span class="n">can</span> <span class="k">use</span> <span class="err">`</span><span class="n">ref</span><span class="err">`</span> <span class="n">to</span> <span class="n">capture</span> <span class="n">value</span> <span class="n">by</span> <span class="n">reference</span><span class="p">)</span>
+</span><span class="line"><span class="n">test</span><span class="p">.</span><span class="n">rs</span><span class="o">:</span><span class="m">10</span>         <span class="n">Some</span><span class="p">(</span><span class="n">num</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">(),</span>
+</span><span class="line">                        <span class="o">^~~</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<p>Perhaps we can tell the user explicitly to use <code>ref num</code>, as opposed to just <code>ref</code>. In many cases, this simple step will solve the problem.</p>
+
+<p>The second way we could present the note is to insert <code>ref</code> into the match arm pattern explicitly, as follows:</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+</pre></td><td class="code"><pre><code class="rust"><span class="line"><span class="n">test</span><span class="p">.</span><span class="n">rs</span><span class="o">:</span><span class="m">9</span><span class="o">:</span><span class="m">11</span><span class="o">:</span> <span class="m">9</span><span class="o">:</span><span class="m">15</span> <span class="n">error</span><span class="o">:</span> <span class="n">cannot</span> <span class="n">move</span> <span class="n">out</span> <span class="n">of</span> <span class="n">dereference</span> <span class="n">of</span> <span class="err">`</span><span class="o">&amp;</span><span class="err">`</span><span class="o">-</span><span class="n">pointer</span>
+</span><span class="line"><span class="n">test</span><span class="p">.</span><span class="n">rs</span><span class="o">:</span><span class="m">9</span>     <span class="n">match</span> <span class="o">*</span><span class="n">opt</span> <span class="p">{</span>
+</span><span class="line">                    <span class="o">^~~~</span>
+</span><span class="line"><span class="n">test</span><span class="p">.</span><span class="n">rs</span><span class="o">:</span><span class="m">10</span><span class="o">:</span><span class="m">9</span><span class="o">:</span> <span class="m">10</span><span class="o">:</span><span class="m">18</span> <span class="k">note</span><span class="o">:</span> <span class="n">to</span> <span class="n">prevent</span> <span class="n">the</span> <span class="n">move</span> <span class="n">and</span> <span class="n">capture</span> <span class="n">value</span> <span class="n">by</span> <span class="n">reference</span> <span class="n">instead</span><span class="p">,</span> <span class="n">change</span> <span class="n">the</span> <span class="n">arm</span> <span class="n">to</span> <span class="err">`</span><span class="n">Some</span><span class="p">(</span><span class="n">ref</span> <span class="n">num</span><span class="p">)</span><span class="err">`</span>
+</span><span class="line"><span class="n">test</span><span class="p">.</span><span class="n">rs</span><span class="o">:</span><span class="m">10</span>         <span class="n">Some</span><span class="p">(</span><span class="n">num</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">(),</span>
+</span><span class="line">                   <span class="o">^~~~~~~~~</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<p>However, I’m not too fond of doing this because just injecting <code>ref</code> into the AST is more work than it looks. And writing a routine to generate a new arm seems overkill, especially when just telling the user to use <code>ref num</code> seems sufficient. In addition, I actually prefer the first note.</p>
+
+<p>That said, in some cases the second way has the advantage of generating less notes. Take this code snippet as an example:</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+<span class="line-number">7</span>
+<span class="line-number">8</span>
+<span class="line-number">9</span>
+<span class="line-number">10</span>
+<span class="line-number">11</span>
+<span class="line-number">12</span>
+</pre></td><td class="code"><pre><code class="rust"><span class="line"><span class="k">enum</span> <span class="n">Foo</span> <span class="p">{</span>
+</span><span class="line">    <span class="n">Foo1</span><span class="p">(</span><span class="o">~</span><span class="k">u32</span><span class="p">,</span> <span class="o">~</span><span class="k">u32</span><span class="p">),</span>
+</span><span class="line">    <span class="n">Foo2</span><span class="p">,</span>
+</span><span class="line"><span class="p">}</span>
+</span><span class="line">
+</span><span class="line"><span class="k">fn</span> <span class="n">main</span><span class="p">()</span> <span class="p">{</span>
+</span><span class="line">    <span class="k">let</span> <span class="n">f</span> <span class="o">=</span> <span class="o">&amp;</span><span class="n">Foo1</span><span class="p">(</span><span class="o">~</span><span class="m">1</span><span class="k">u32</span><span class="p">,</span> <span class="o">~</span><span class="m">2</span><span class="k">u32</span><span class="p">);</span>
+</span><span class="line">    <span class="n">match</span> <span class="o">*</span><span class="n">f</span> <span class="p">{</span>
+</span><span class="line">        <span class="n">Foo1</span><span class="p">(</span><span class="n">num1</span><span class="p">,</span> <span class="n">num2</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">(),</span>
+</span><span class="line">        <span class="n">Foo2</span> <span class="o">=&gt;</span> <span class="p">()</span>
+</span><span class="line">    <span class="p">}</span>
+</span><span class="line"><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<p>Using the first method, the error and notes we generate would be:</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+<span class="line-number">7</span>
+<span class="line-number">8</span>
+<span class="line-number">9</span>
+</pre></td><td class="code"><pre><code class="rust"><span class="line"><span class="n">test</span><span class="p">.</span><span class="n">rs</span><span class="o">:</span><span class="m">8</span><span class="o">:</span><span class="m">11</span><span class="o">:</span> <span class="m">8</span><span class="o">:</span><span class="m">13</span> <span class="n">error</span><span class="o">:</span> <span class="n">cannot</span> <span class="n">move</span> <span class="n">out</span> <span class="n">of</span> <span class="n">dereference</span> <span class="n">of</span> <span class="err">`</span><span class="o">&amp;</span><span class="err">`</span><span class="o">-</span><span class="n">pointer</span>
+</span><span class="line"><span class="n">test</span><span class="p">.</span><span class="n">rs</span><span class="o">:</span><span class="m">8</span>     <span class="n">match</span> <span class="o">*</span><span class="n">f</span> <span class="p">{</span>
+</span><span class="line">                    <span class="o">^~</span>
+</span><span class="line"><span class="n">test</span><span class="p">.</span><span class="n">rs</span><span class="o">:</span><span class="m">9</span><span class="o">:</span><span class="m">14</span><span class="o">:</span> <span class="m">9</span><span class="o">:</span><span class="m">18</span> <span class="k">note</span><span class="o">:</span> <span class="n">attempting</span> <span class="n">to</span> <span class="n">move</span> <span class="n">inner</span> <span class="n">value</span> <span class="n">to</span> <span class="n">here</span> <span class="p">(</span><span class="n">to</span> <span class="n">prevent</span> <span class="n">the</span> <span class="n">move</span><span class="p">,</span> <span class="n">you</span> <span class="n">can</span> <span class="k">use</span> <span class="err">`</span><span class="n">ref</span> <span class="n">num1</span><span class="err">`</span> <span class="n">to</span> <span class="n">capture</span> <span class="n">value</span> <span class="n">by</span> <span class="n">reference</span><span class="p">)</span>
+</span><span class="line"><span class="n">test</span><span class="p">.</span><span class="n">rs</span><span class="o">:</span><span class="m">9</span>         <span class="n">Foo1</span><span class="p">(</span><span class="n">num1</span><span class="p">,</span> <span class="n">num2</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">(),</span>
+</span><span class="line">                       <span class="o">^~~~</span>
+</span><span class="line"><span class="n">test</span><span class="p">.</span><span class="n">rs</span><span class="o">:</span><span class="m">9</span><span class="o">:</span><span class="m">20</span><span class="o">:</span> <span class="m">9</span><span class="o">:</span><span class="m">24</span> <span class="k">note</span><span class="o">:</span> <span class="n">attempting</span> <span class="n">to</span> <span class="n">move</span> <span class="n">inner</span> <span class="n">value</span> <span class="n">to</span> <span class="n">here</span> <span class="p">(</span><span class="n">to</span> <span class="n">prevent</span> <span class="n">the</span> <span class="n">move</span><span class="p">,</span> <span class="n">you</span> <span class="n">can</span> <span class="k">use</span> <span class="err">`</span><span class="n">ref</span> <span class="n">num2</span><span class="err">`</span> <span class="n">to</span> <span class="n">capture</span> <span class="n">value</span> <span class="n">by</span> <span class="n">reference</span><span class="p">)</span>
+</span><span class="line"><span class="n">test</span><span class="p">.</span><span class="n">rs</span><span class="o">:</span><span class="m">9</span>         <span class="n">Foo1</span><span class="p">(</span><span class="n">num1</span><span class="p">,</span> <span class="n">num2</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">(),</span>
+</span><span class="line">                             <span class="o">^~~~</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<p>With the second method, we can generate one less note:</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+</pre></td><td class="code"><pre><code class="rust"><span class="line"><span class="n">test</span><span class="p">.</span><span class="n">rs</span><span class="o">:</span><span class="m">8</span><span class="o">:</span><span class="m">11</span><span class="o">:</span> <span class="m">8</span><span class="o">:</span><span class="m">13</span> <span class="n">error</span><span class="o">:</span> <span class="n">cannot</span> <span class="n">move</span> <span class="n">out</span> <span class="n">of</span> <span class="n">dereference</span> <span class="n">of</span> <span class="err">`</span><span class="o">&amp;</span><span class="err">`</span><span class="o">-</span><span class="n">pointer</span>
+</span><span class="line"><span class="n">test</span><span class="p">.</span><span class="n">rs</span><span class="o">:</span><span class="m">8</span>     <span class="n">match</span> <span class="o">*</span><span class="n">f</span> <span class="p">{</span>
+</span><span class="line">                    <span class="o">^~</span>
+</span><span class="line"><span class="n">test</span><span class="p">.</span><span class="n">rs</span><span class="o">:</span><span class="m">9</span><span class="o">:</span><span class="m">9</span><span class="o">:</span> <span class="m">9</span><span class="o">:</span><span class="m">25</span> <span class="k">note</span><span class="o">:</span> <span class="n">to</span> <span class="n">prevent</span> <span class="n">the</span> <span class="n">move</span> <span class="n">and</span> <span class="n">capture</span> <span class="n">value</span> <span class="n">by</span> <span class="n">reference</span> <span class="n">instead</span><span class="p">,</span> <span class="n">change</span> <span class="n">the</span> <span class="n">arm</span> <span class="n">to</span> <span class="err">`</span><span class="n">Foo1</span><span class="p">(</span><span class="n">ref</span> <span class="n">num1</span><span class="p">,</span> <span class="n">ref</span> <span class="n">num2</span><span class="p">)</span><span class="err">`</span>
+</span><span class="line"><span class="n">test</span><span class="p">.</span><span class="n">rs</span><span class="o">:</span><span class="m">9</span>         <span class="n">Foo1</span><span class="p">(</span><span class="n">num1</span><span class="p">,</span> <span class="n">num2</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">(),</span>
+</span><span class="line">                  <span class="o">^~~~~~~~~~~~~~~~</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<p>I think either of them is an improvement to the current error message:</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+</pre></td><td class="code"><pre><code class="rust"><span class="line"><span class="n">test</span><span class="p">.</span><span class="n">rs</span><span class="o">:</span><span class="m">9</span><span class="o">:</span><span class="m">9</span><span class="o">:</span> <span class="m">9</span><span class="o">:</span><span class="m">25</span> <span class="n">error</span><span class="o">:</span> <span class="n">cannot</span> <span class="n">move</span> <span class="n">out</span> <span class="n">of</span> <span class="n">dereference</span> <span class="n">of</span> <span class="err">`</span><span class="o">&amp;</span><span class="err">`</span><span class="o">-</span><span class="n">pointer</span>
+</span><span class="line"><span class="n">test</span><span class="p">.</span><span class="n">rs</span><span class="o">:</span><span class="m">9</span>         <span class="n">Foo1</span><span class="p">(</span><span class="n">num1</span><span class="p">,</span> <span class="n">num2</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">(),</span>
+</span><span class="line">                  <span class="o">^~~~~~~~~~~~~~~~</span>
+</span><span class="line"><span class="n">test</span><span class="p">.</span><span class="n">rs</span><span class="o">:</span><span class="m">9</span><span class="o">:</span><span class="m">9</span><span class="o">:</span> <span class="m">9</span><span class="o">:</span><span class="m">25</span> <span class="n">error</span><span class="o">:</span> <span class="n">cannot</span> <span class="n">move</span> <span class="n">out</span> <span class="n">of</span> <span class="n">dereference</span> <span class="n">of</span> <span class="err">`</span><span class="o">&amp;</span><span class="err">`</span><span class="o">-</span><span class="n">pointer</span>
+</span><span class="line"><span class="n">test</span><span class="p">.</span><span class="n">rs</span><span class="o">:</span><span class="m">9</span>         <span class="n">Foo1</span><span class="p">(</span><span class="n">num1</span><span class="p">,</span> <span class="n">num2</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">(),</span>
+</span><span class="line">                  <span class="o">^~~~~~~~~~~~~~~~</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+</div>
+  
+  
+
+
+    </article>
   
   
     <article>
@@ -919,6 +1084,10 @@
     <section>
   <h1>Recent Posts</h1>
   <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/2014/04/07/cannot-move-out-of-dereference-of-and-pointer/">Cannot Move Out of Dereference of &amp;-pointer</a>
+      </li>
     
       <li class="post">
         <a href="/blog/2014/02/10/understanding-rusts-lifetime-inference/">Understanding Rust&#8217;s Lifetime Inference</a>
